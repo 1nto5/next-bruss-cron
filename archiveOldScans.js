@@ -25,18 +25,21 @@ async function archiveOldScans() {
     console.log(`Documents marked as archived: ${updateResult.modifiedCount}`);
 
     // 2. Copy docs with archived: true to scans_archive
-    const archivedDocs = await scansCollection
-      .find({ archived: true })
-      .limit(10000) // Limit to 10000 documents
-      .toArray();
-    console.log(
-      `Documents to be copied to scans_archive: ${archivedDocs.length}`
-    );
+    let archivedDocs;
+    do {
+      archivedDocs = await scansCollection
+        .find({ archived: true })
+        .limit(10000) // Limit to 10000 documents
+        .toArray();
+      console.log(
+        `Documents to be copied to scans_archive: ${archivedDocs.length}`
+      );
 
-    if (archivedDocs.length > 0) {
-      await scansArchiveCollection.insertMany(archivedDocs);
-      console.log("Documents copied to scans_archive");
-    }
+      if (archivedDocs.length > 0) {
+        await scansArchiveCollection.insertMany(archivedDocs);
+        console.log("Documents copied to scans_archive");
+      }
+    } while (archivedDocs.length > 0);
 
     // 3. Delete docs with archived: true
     const deleteResult = await scansCollection.deleteMany({ archived: true });
