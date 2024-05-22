@@ -17,6 +17,9 @@ async function archiveOldScans() {
     const scansCollection = db.collection("scans");
     const scansArchiveCollection = db.collection("scans_archive");
 
+    const startTime = new Date(); // Register start time
+    console.log(`Archiving started at: ${startTime}`);
+
     // 1. Mark as archive older than 1 month
     const updateResult = await scansCollection.updateMany(
       { time: { $lt: new Date(Date.now() - 1 * 30 * 24 * 60 * 60 * 1000) } },
@@ -48,7 +51,8 @@ async function archiveOldScans() {
       }
     } while (archivedDocs.length > 0);
 
-    console.log("Archiving old scans completed.");
+    const endTime = new Date(); // Register end time
+    console.log(`Archiving ended at: ${endTime}`);
   } catch (error) {
     console.error("Error during archiving scans:", error);
   } finally {
