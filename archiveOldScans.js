@@ -15,6 +15,7 @@ async function archiveOldScans() {
     await client.connect();
     const db = client.db();
     const scansCollection = db.collection("scans");
+    const scansArchiveCollection = db.collection("scans_archive");
 
     // 1. Mark as archive older than 1 month
     const updateResult = await scansCollection.updateMany(
@@ -32,14 +33,7 @@ async function archiveOldScans() {
     );
 
     if (archivedDocs.length > 0) {
-      await scansCollection
-        .aggregate(
-          [{ $match: { archived: true } }, { $out: "scans_archive" }],
-          {
-            allowDiskUse: true,
-          }
-        )
-        .toArray();
+      await scansArchiveCollection.insertMany(archivedDocs);
       console.log("Documents copied to scans_archive");
     }
 
