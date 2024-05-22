@@ -24,24 +24,24 @@ async function archiveOldScans() {
     console.log(`Documents marked as archived: ${updateResult.modifiedCount}`);
 
     // 2. Copy docs with archived: true to scans_archive
-    // const archivedDocs = await scansCollection
-    //   .find({ archived: true })
-    //   .toArray();
-    // console.log(
-    //   `Documents to be copied to scans_archive: ${archivedDocs.length}`
-    // );
+    const archivedDocs = await scansCollection
+      .find({ archived: true })
+      .toArray();
+    console.log(
+      `Documents to be copied to scans_archive: ${archivedDocs.length}`
+    );
 
-    // if (archivedDocs.length > 0) {
-    //   await scansCollection
-    //     .aggregate(
-    //       [{ $match: { archived: true } }, { $out: "scans_archive" }],
-    //       {
-    //         allowDiskUse: true,
-    //       }
-    //     )
-    //     .toArray();
-    //   console.log("Documents copied to scans_archive");
-    // }
+    if (archivedDocs.length > 0) {
+      await scansCollection
+        .aggregate(
+          [{ $match: { archived: true } }, { $out: "scans_archive" }],
+          {
+            allowDiskUse: true,
+          }
+        )
+        .toArray();
+      console.log("Documents copied to scans_archive");
+    }
 
     // 3. Delete docs with archived: true
     // const deleteResult = await scansCollection.deleteMany({ archived: true });
