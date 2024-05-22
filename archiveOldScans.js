@@ -24,7 +24,7 @@ async function archiveOldScans() {
     );
     console.log(`Documents marked as archived: ${updateResult.modifiedCount}`);
 
-    // 2. Copy docs with archived: true to scans_archive
+    // 2. Copy docs with archived: true to scans_archive and delete them
     let archivedDocs;
     do {
       archivedDocs = await scansCollection
@@ -38,12 +38,15 @@ async function archiveOldScans() {
       if (archivedDocs.length > 0) {
         await scansArchiveCollection.insertMany(archivedDocs);
         console.log("Documents copied to scans_archive");
+
+        // Delete the copied documents
+        const idsToDelete = archivedDocs.map((doc) => doc._id);
+        const deleteResult = await scansCollection.deleteMany({
+          _id: { $in: idsToDelete },
+        });
+        console.log(`Documents deleted: ${deleteResult.deletedCount}`);
       }
     } while (archivedDocs.length > 0);
-
-    // 3. Delete docs with archived: true
-    const deleteResult = await scansCollection.deleteMany({ archived: true });
-    console.log(`Documents deleted: ${deleteResult.deletedCount}`);
 
     console.log("Archiving old scans completed.");
   } catch (error) {
