@@ -5,14 +5,10 @@
   "devDependencies": {
     "@types/bun": "latest"
   },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
+  "peerDependencies": {},
   "dependencies": {
-    "@types/node": "^20.12.12",
-    "@types/node-cron": "^3.0.11",
+    "dotenv": "^16.4.5",
     "mongodb": "^6.6.2",
-    "node-cron": "^3.0.3",
-    "typescript": "^5.4.5"
+    "node-cron": "^3.0.3"
   }
 }
