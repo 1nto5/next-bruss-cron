@@ -27,6 +27,7 @@ async function archiveOldScans() {
     // 2. Copy docs with archived: true to scans_archive
     const archivedDocs = await scansCollection
       .find({ archived: true })
+      .limit(10000) // Limit to 10000 documents
       .toArray();
     console.log(
       `Documents to be copied to scans_archive: ${archivedDocs.length}`
