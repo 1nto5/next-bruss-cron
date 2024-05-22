@@ -55,8 +55,6 @@ async function archiveOldScans() {
   }
 }
 
-archiveOldScans();
-
 // Schedule the task to run every day at 22:00
 cron.schedule("0 22 * * *", archiveOldScans);
 
