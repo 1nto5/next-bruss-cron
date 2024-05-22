@@ -23,38 +23,29 @@ async function archiveOldScans() {
     );
     console.log(`Documents marked as archived: ${updateResult.modifiedCount}`);
 
-    // Ensure scans_archive collection is reset
-    const archiveCollection = db.collection("scans_archive");
-    await archiveCollection.drop().catch((error) => {
-      if (error.code !== 26) {
-        // 26 indicates the collection doesn't exist
-        throw error;
-      }
-    });
-
     // 2. Copy docs with archived: true to scans_archive
-    const archivedDocs = await scansCollection
-      .find({ archived: true })
-      .toArray();
-    console.log(
-      `Documents to be copied to scans_archive: ${archivedDocs.length}`
-    );
+    // const archivedDocs = await scansCollection
+    //   .find({ archived: true })
+    //   .toArray();
+    // console.log(
+    //   `Documents to be copied to scans_archive: ${archivedDocs.length}`
+    // );
 
-    if (archivedDocs.length > 0) {
-      await scansCollection
-        .aggregate(
-          [{ $match: { archived: true } }, { $out: "scans_archive" }],
-          {
-            allowDiskUse: true,
-          }
-        )
-        .toArray();
-      console.log("Documents copied to scans_archive");
-    }
+    // if (archivedDocs.length > 0) {
+    //   await scansCollection
+    //     .aggregate(
+    //       [{ $match: { archived: true } }, { $out: "scans_archive" }],
+    //       {
+    //         allowDiskUse: true,
+    //       }
+    //     )
+    //     .toArray();
+    //   console.log("Documents copied to scans_archive");
+    // }
 
     // 3. Delete docs with archived: true
-    const deleteResult = await scansCollection.deleteMany({ archived: true });
-    console.log(`Documents deleted: ${deleteResult.deletedCount}`);
+    // const deleteResult = await scansCollection.deleteMany({ archived: true });
+    // console.log(`Documents deleted: ${deleteResult.deletedCount}`);
 
     console.log("Archiving old scans completed.");
   } catch (error) {
