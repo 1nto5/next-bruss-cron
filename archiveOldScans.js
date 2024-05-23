@@ -39,8 +39,18 @@ async function archiveOldScans() {
       );
 
       if (archivedDocs.length > 0) {
-        await scansArchiveCollection.insertMany(archivedDocs);
-        console.log("Documents copied to scans_archive");
+        try {
+          await scansArchiveCollection.insertMany(archivedDocs, {
+            ordered: false,
+          });
+          console.log("Documents copied to scans_archive");
+        } catch (error) {
+          if (error.code === 11000) {
+            console.warn("Duplicate key error encountered. Continuing...");
+          } else {
+            throw error; // re-throw the error if it's not a duplicate key error
+          }
+        }
 
         // Delete the copied documents
         const idsToDelete = archivedDocs.map((doc) => doc._id);
