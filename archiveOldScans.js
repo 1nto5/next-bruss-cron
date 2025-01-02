@@ -20,9 +20,9 @@ async function archiveOldScans() {
     const startTime = new Date(); // Register start time
     console.log(`Archiving started at: ${startTime}`);
 
-    // 1. Mark as archive older than 2 months
+    // 1. Mark as archive older than 3 months
     const updateResult = await scansCollection.updateMany(
-      { time: { $lt: new Date(Date.now() - 2 * 30 * 24 * 60 * 60 * 1000) } },
+      { time: { $lt: new Date(Date.now() - 3 * 30 * 24 * 60 * 60 * 1000) } },
       { $set: { archived: true } }
     );
     console.log(`Documents marked as archived: ${updateResult.modifiedCount}`);
