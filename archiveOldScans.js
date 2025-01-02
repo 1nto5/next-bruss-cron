@@ -69,9 +69,8 @@ async function archiveOldScans() {
     await client.close();
   }
 }
-
-// Schedule the task to run every day at 22:00
-cron.schedule("0 22 * * *", archiveOldScans);
+// Schedule the task to run every Sunday at 22:00
+cron.schedule("0 22 * * 0", archiveOldScans);
 
 // Export the function (optional, in case you want to call it manually)
 export { archiveOldScans };
