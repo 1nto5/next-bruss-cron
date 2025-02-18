@@ -79,10 +79,8 @@ async function syncR2platnikEmployees() {
     await sql.close();
   }
 }
-
-// Schedule the task to run every day at 22:00
-cron.schedule('0 22 * * *', syncR2platnikEmployees);
-syncR2platnikEmployees(); // Run the function immediately
+// Schedule the task to run every 30 seconds for testing
+cron.schedule('*/30 * * * * *', syncR2platnikEmployees);
 
 // Export the function to be able to call it manually if needed
 export { syncR2platnikEmployees };
