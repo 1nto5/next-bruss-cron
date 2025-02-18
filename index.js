@@ -1,3 +1,3 @@
-import { archiveOldScans } from "./archiveOldScans.js";
+import { archiveOldScans } from './archive-old-scans.js';
 
 archiveOldScans();
