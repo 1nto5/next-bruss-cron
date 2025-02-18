@@ -34,11 +34,13 @@ async function syncR2platnikEmployees() {
       'SELECT Imie, Nazwisko, Identyfikator FROM [dbo].[PRACOWNK] WHERE Skasowany = 0 AND (Data_zwolnienia > GETDATE() OR Data_zwolnienia IS NULL)';
     const result = await sql.query(query);
 
-    const employees = result.recordset.map((row) => ({
-      firstName: row.Imie,
-      lastName: row.Nazwisko,
-      identifier: row.Identyfikator,
-    }));
+    const employees = result.recordset.map(
+      ({ Imie, Nazwisko, Identyfikator }) => ({
+        firstName: Imie,
+        lastName: Nazwisko,
+        identifier: Identyfikator,
+      })
+    );
 
     if (employees.length > 0) {
       const bulkOps = employees.map((emp) => ({
@@ -49,24 +51,17 @@ async function syncR2platnikEmployees() {
         },
       }));
 
-      const bulkResult = await employeesCollection.bulkWrite(bulkOps, {
-        ordered: false,
-      });
+      await employeesCollection.bulkWrite(bulkOps, { ordered: false });
 
-      // Remove employees not present in SQL source
       const currentIdentifiers = employees.map((emp) => emp.identifier);
       await employeesCollection.deleteMany({
         identifier: { $nin: currentIdentifiers },
       });
-
-      const updatedCount =
-        (bulkResult.modifiedCount || 0) + (bulkResult.upsertedCount || 0);
     }
   } catch (error) {
     console.error('Error during syncing employees:', error);
   } finally {
-    await mongoClient.close();
-    await sql.close();
+    await Promise.all([mongoClient.close(), sql.close()]);
     console.log(
       `syncR2platnikEmployees -> success at ${new Date().toLocaleString()}`
     );

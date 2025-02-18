@@ -11,24 +11,27 @@ async function archiveScans() {
   }
   const client = new MongoClient(process.env.MONGO_URI);
   let totalSynchronized = 0;
+
+  const THREE_MONTHS_MS = 3 * 30 * 24 * 60 * 60 * 1000;
+  const BATCH_SIZE = 10000;
+  const thresholdDate = new Date(Date.now() - THREE_MONTHS_MS);
+
   try {
     await client.connect();
     const db = client.db();
     const scansCollection = db.collection('scans');
     const scansArchiveCollection = db.collection('scans_archive');
 
-    // Mark as archived all documents older than 3 months
     await scansCollection.updateMany(
-      { time: { $lt: new Date(Date.now() - 3 * 30 * 24 * 60 * 60 * 1000) } },
+      { time: { $lt: thresholdDate } },
       { $set: { archived: true } }
     );
 
-    // Copy docs with archived: true to scans_archive and delete them in batches
     let archivedDocs;
     do {
       archivedDocs = await scansCollection
         .find({ archived: true })
-        .limit(10000)
+        .limit(BATCH_SIZE)
         .toArray();
 
       if (archivedDocs.length > 0) {
@@ -38,7 +41,6 @@ async function archiveScans() {
           });
         } catch (error) {
           if (error.code === 11000) {
-            // Duplicate key error - continue processing
           } else {
             throw error;
           }
