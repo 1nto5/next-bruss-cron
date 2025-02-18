@@ -31,7 +31,7 @@ async function syncR2platnikEmployees() {
 
     await sql.connect(sqlConfig);
     const query =
-      'SELECT Imie, Nazwisko, Identyfikator FROM [dbo].[PRACOWNK] WHERE Skasowany = 0 AND (Data_zwolnienia > GETDATE() OR Data_zwolnienia IS NULL)';
+      'SELECT Imie, Nazwisko, Identyfikator FROM [dbo].[PRACOWNK] WHERE Identyfikator IS NOT NULL AND Skasowany = 0 AND (Data_zwolnienia > GETDATE() OR Data_zwolnienia IS NULL)';
     const result = await sql.query(query);
 
     const employees = result.recordset.map(
