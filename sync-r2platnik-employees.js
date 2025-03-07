@@ -1,8 +1,7 @@
-import dotenv from 'dotenv';
-import { MongoClient } from 'mongodb';
 import sql from 'mssql';
+import { dbc } from './lib/mongo';
 
-dotenv.config();
+require('dotenv').config();
 
 async function syncR2platnikEmployees() {
   if (!process.env.MONGO_URI) {
@@ -23,11 +22,8 @@ async function syncR2platnikEmployees() {
     },
   };
 
-  const mongoClient = new MongoClient(process.env.MONGO_URI);
   try {
-    await mongoClient.connect();
-    const db = mongoClient.db();
-    const employeesCollection = db.collection('employees');
+    const employeesCollection = await dbc('employees');
 
     await sql.connect(sqlConfig);
     const query =
@@ -61,7 +57,7 @@ async function syncR2platnikEmployees() {
   } catch (error) {
     console.error('Error during syncing employees:', error);
   } finally {
-    await Promise.all([mongoClient.close(), sql.close()]);
+    await sql.close();
     console.log(
       `syncR2platnikEmployees -> success at ${new Date().toLocaleString()}`
     );

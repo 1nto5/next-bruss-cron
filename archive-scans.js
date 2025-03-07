@@ -1,15 +1,8 @@
-import dotenv from 'dotenv';
-import { MongoClient } from 'mongodb';
+import { dbc } from './lib/mongo';
 
-dotenv.config();
+require('dotenv').config();
 
 async function archiveScans() {
-  if (!process.env.MONGO_URI) {
-    throw new Error(
-      'Please define the MONGO_URI environment variable inside .env!'
-    );
-  }
-  const client = new MongoClient(process.env.MONGO_URI);
   let totalSynchronized = 0;
 
   const THREE_MONTHS_MS = 3 * 30 * 24 * 60 * 60 * 1000;
@@ -17,10 +10,8 @@ async function archiveScans() {
   const thresholdDate = new Date(Date.now() - THREE_MONTHS_MS);
 
   try {
-    await client.connect();
-    const db = client.db();
-    const scansCollection = db.collection('scans');
-    const scansArchiveCollection = db.collection('scans_archive');
+    const scansCollection = await dbc('scans');
+    const scansArchiveCollection = await dbc('scans_archive');
 
     await scansCollection.updateMany(
       { time: { $lt: thresholdDate } },
@@ -40,8 +31,7 @@ async function archiveScans() {
             ordered: false,
           });
         } catch (error) {
-          if (error.code === 11000) {
-          } else {
+          if (error.code !== 11000) {
             throw error;
           }
         }
@@ -59,8 +49,6 @@ async function archiveScans() {
     );
   } catch (error) {
     console.error('Error during archiving scans:', error);
-  } finally {
-    await client.close();
   }
 }
 
