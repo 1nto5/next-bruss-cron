@@ -10,7 +10,7 @@ cron.schedule('0 6,14,22 * * *', syncR2platnikEmployees);
 cron.schedule('0 22 * * 0', archiveScans);
 
 // Schedule sending of pending production overtime email notifications every day at 22:00
-// cron.schedule('0 22 * * *', sendPendingProductionOvertimeEmailNotifications);
+cron.schedule('0 22 * * *', sendPendingProductionOvertimeEmailNotifications);
 
 // For testing: Schedule email sending every minute
-cron.schedule('* * * * *', sendPendingProductionOvertimeEmailNotifications, {});
+// cron.schedule('* * * * *', sendPendingProductionOvertimeEmailNotifications, {});
