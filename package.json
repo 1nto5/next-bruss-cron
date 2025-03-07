@@ -2,9 +2,7 @@
   "name": "next-bruss-cron",
   "module": "index.ts",
   "type": "module",
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
+  "devDependencies": {},
   "peerDependencies": {},
   "dependencies": {
     "axios": "^1.8.1",

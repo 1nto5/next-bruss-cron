@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
-import { dbc } from './lib/mongo';
+import { dbc } from './lib/mongo.js';
+
 dotenv.config();
 
 async function archiveScans() {
