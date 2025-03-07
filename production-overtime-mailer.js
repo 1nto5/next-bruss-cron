@@ -94,4 +94,7 @@ async function sendPendingProductionOvertimeEmailNotifications() {
   );
 }
 
+// wywołanie funkcji
+sendPendingProductionOvertimeEmailNotifications();
+
 export { sendPendingProductionOvertimeEmailNotifications };
