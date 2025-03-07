@@ -1,6 +1,7 @@
+import dotenv from 'dotenv';
 import { MongoClient, ServerApiVersion } from 'mongodb';
 
-require('dotenv').config();
+dotenv.config();
 
 if (!process.env.MONGO_URI) {
   throw new Error('Invalid/Missing environment variable: "MONGO_URI"');
