@@ -54,15 +54,19 @@ async function sendPendingProductionOvertimeEmailNotifications() {
       const subject =
         'Oczekujące zlecania wykonania pracy w godzinach nadliczbowych - produkcja';
       const html = `
-        <div style="font-family: sans-serif; padding: 20px;">
-          <p>Masz ${pendingRequests.length} oczekujących zleceń wykonania pracy w godzinach nadliczbowych - produkcja.</p>
+        <div style="font-family: sans-serif;">
+          <p style="padding-bottom: 20px;">Masz ${pendingRequests.length} ${
+        pendingRequests.length === 1
+          ? 'oczekujące zlecenie'
+          : 'oczekujące zlecenia'
+      } wykonania pracy w godzinach nadliczbowych - produkcja.</p>
           <p>
-            <a href="${process.env.APP_URL}/production-overtime" 
-               style="background-color: #4CAF50; color: white; padding: 10px 15px; 
-               text-align: center; text-decoration: none; display: inline-block; 
-               border-radius: 4px; font-weight: bold; margin-top: 10px;">
-              Przejdź do zleceń
-            </a>
+        <a href="${process.env.APP_URL}/production-overtime" 
+           style="background-color: #4CAF50; color: white; padding: 10px 15px; 
+           text-align: center; text-decoration: none; display: inline-block; 
+           border-radius: 4px; font-weight: bold; margin-top: 10px;">
+          Przejdź do zleceń
+        </a>
           </p>
         </div>
       `;
@@ -94,8 +98,5 @@ async function sendPendingProductionOvertimeEmailNotifications() {
     `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} (${totalRequests} pending requests, ${totalManagers} managers, ${emailsSent} emails sent, ${emailErrors} errors)`
   );
 }
-
-// wywołanie funkcji
-sendPendingProductionOvertimeEmailNotifications();
 
 export { sendPendingProductionOvertimeEmailNotifications };
