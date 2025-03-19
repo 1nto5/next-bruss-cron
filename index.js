@@ -1,8 +1,10 @@
+import dotenv from 'dotenv';
 import cron from 'node-cron';
 import { archiveScans } from './archive-scans.js';
 import { sendPendingProductionOvertimeEmailNotifications } from './production-overtime-mailer.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
-require('dotenv').config();
+
+dotenv.config();
 
 // Schedule synchronization of employees at 06:00, 14:00, and 22:00 every day
 cron.schedule('0 6,14,22 * * *', syncR2platnikEmployees);

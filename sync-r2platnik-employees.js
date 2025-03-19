@@ -1,7 +1,8 @@
+import dotenv from 'dotenv';
 import sql from 'mssql';
 import { dbc } from './lib/mongo.js';
 
-require('dotenv').config();
+dotenv.config();
 
 async function syncR2platnikEmployees() {
   if (!process.env.MONGO_URI) {

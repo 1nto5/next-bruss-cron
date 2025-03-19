@@ -1,6 +1,5 @@
 {
   "name": "next-bruss-cron",
-  "module": "index.ts",
   "type": "module",
   "devDependencies": {},
   "peerDependencies": {},
