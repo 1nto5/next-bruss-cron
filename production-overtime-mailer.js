@@ -1,8 +1,7 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
 import { dbc } from './lib/mongo.js';
 
-dotenv.config();
+require('dotenv').config();
 
 /**
  * Sends email notifications to plant managers about pending overtime requests

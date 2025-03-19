@@ -1,7 +1,6 @@
-import dotenv from 'dotenv';
 import { dbc } from './lib/mongo.js';
 
-dotenv.config();
+require('dotenv').config();
 
 async function archiveScans() {
   let totalSynchronized = 0;
