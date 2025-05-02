@@ -1,7 +1,8 @@
 import { dbc } from './lib/mongo.js';
 
 import dotenv from 'dotenv'; // Import dotenv
-const LdapClient = require('ldapjs-client');
+// const LdapClient = require('ldapjs-client');
+import LdapClient from 'ldapjs-client'; // Import LdapClient
 
 dotenv.config();
 
