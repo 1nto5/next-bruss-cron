@@ -19,9 +19,7 @@ cron.schedule('0 22 * * *', sendPendingProductionOvertimeEmailNotifications);
 // For testing: Schedule email sending every minute
 // cron.schedule('* * * * *', sendPendingProductionOvertimeEmailNotifications, {});
 
-// Schedule synchronization of LDAP users every day at 9:00, 12:30 and 16:00
-cron.schedule('0 9 * * *', syncLdapUsers);
-cron.schedule('30 12 * * *', syncLdapUsers);
+// Schedule synchronization of LDAP users every day at 16:00
 cron.schedule('0 16 * * *', syncLdapUsers);
 
 // Schedule synchronization of LDAP users every minute for testing
