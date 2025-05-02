@@ -20,7 +20,7 @@ export async function syncLdapUsers() {
     throw new Error('Missing required LDAP environment variables');
   }
 
-  const usersColl = await dbc('users-test');
+  const usersColl = await dbc('users');
 
   const ldapClient = new LdapClient({ url: ldapUrl });
   const fetchedMails = new Set(); // Removed <string> type annotation
