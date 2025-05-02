@@ -93,5 +93,3 @@ export async function syncLdapUsers() {
     throw error; // Re-throw the error after logging
   }
 }
-
-syncLdapUsers();
