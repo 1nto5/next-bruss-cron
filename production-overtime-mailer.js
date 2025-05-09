@@ -54,7 +54,7 @@ async function sendPendingProductionOvertimeEmailNotifications() {
       const subject =
         'Oczekujące zlecania wykonania pracy w godzinach nadliczbowych - produkcja';
       const html = `
-        <div style="font-family: sans-serif;">
+        <div>
           <p style="padding-bottom: 20px;">Masz ${pendingRequests.length} ${
         pendingRequests.length === 1
           ? 'oczekujące zlecenie'
