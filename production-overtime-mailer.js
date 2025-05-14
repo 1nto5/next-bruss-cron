@@ -21,7 +21,7 @@ async function sendPendingProductionOvertimeEmailNotifications() {
 
     if (pendingRequests.length === 0) {
       console.log(
-        `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} (0 pending requests, 0 emails sent)`
+        `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} | Pending: 0, Emails: 0`
       );
       return;
     }
@@ -37,7 +37,7 @@ async function sendPendingProductionOvertimeEmailNotifications() {
 
     if (plantManagers.length === 0) {
       console.log(
-        `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} (${totalRequests} pending requests, 0 managers found, 0 emails sent)`
+        `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} | Pending: ${totalRequests}, Managers: 0, Emails: 0`
       );
       return;
     }
@@ -95,7 +95,7 @@ async function sendPendingProductionOvertimeEmailNotifications() {
   }
 
   console.log(
-    `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} (${totalRequests} pending requests, ${totalManagers} managers, ${emailsSent} emails sent, ${emailErrors} errors)`
+    `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} | Pending: ${totalRequests}, Managers: ${totalManagers}, Emails: ${emailsSent}, Errors: ${emailErrors}`
   );
 }
 

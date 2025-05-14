@@ -39,9 +39,9 @@ async function deviationsStatusUpdate() {
     );
 
     console.log(
-      `updateDeviationStatuses -> in progress: ${
+      `deviationsStatusUpdate -> success at ${new Date().toLocaleString()} | InProgress: ${
         result1.modifiedCount
-      }, closed: ${result2.modifiedCount} at ${today.toLocaleDateString()}`
+      }, Closed: ${result2.modifiedCount}`
     );
   } catch (error) {
     console.error('Error updating deviation statuses:', error);

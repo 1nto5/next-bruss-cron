@@ -47,7 +47,7 @@ async function archiveScans() {
     } while (archivedDocs.length > 0);
 
     console.log(
-      `archiveScans -> success at ${new Date().toLocaleString()} (${totalSynchronized} archived)`
+      `archiveScans -> success at ${new Date().toLocaleString()} | Archived: ${totalSynchronized}`
     );
   } catch (error) {
     console.error('Error during archiving scans:', error);

@@ -38,7 +38,7 @@ async function sendPendingDeviationApprovalNotifications() {
 
   if (pendingDeviations.length === 0) {
     console.log(
-      `sendPendingDeviationApprovalNotifications -> processed: 0, reminders sent: 0 at ${now.toLocaleDateString()}`
+      `sendPendingDeviationApprovalNotifications -> success at ${now.toLocaleString()} | Processed: 0, Reminders: 0`
     );
     return;
   }
@@ -255,9 +255,9 @@ async function sendPendingDeviationApprovalNotifications() {
   }
 
   console.log(
-    `sendPendingDeviationApprovalNotifications -> processed: ${
+    `sendPendingDeviationApprovalNotifications -> success at ${now.toLocaleString()} | Processed: ${
       pendingDeviations.length
-    }, reminders sent: ${remindersSent} at ${now.toLocaleDateString()}`
+    }, Reminders: ${remindersSent}`
   );
 }
 
