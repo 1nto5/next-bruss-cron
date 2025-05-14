@@ -1,96 +1,111 @@
 import { dbc } from './lib/mongo.js';
-
-import dotenv from 'dotenv'; // Import dotenv
-// const LdapClient = require('ldapjs-client');
-import LdapClient from 'ldapjs-client'; // Import LdapClient
-
-dotenv.config();
-
-// Removed LdapEntry and SyncResult interfaces
+const LdapClientModule = await import('ldapjs-client');
+const LdapClient = LdapClientModule.default || LdapClientModule;
 
 export async function syncLdapUsers() {
-  // Removed Promise<SyncResult> type annotation
-  const ldapUrl = process.env.LDAP; // Removed non-null assertion (!)
-  const adminDn = process.env.LDAP_DN; // Removed non-null assertion (!)
-  const adminPass = process.env.LDAP_PASS; // Removed non-null assertion (!)
-  const baseDn = process.env.LDAP_BASE_DN; // Removed non-null assertion (!)
+  const ldapClient = new LdapClient({
+    url: process.env.LDAP,
+    timeout: 30000,
+    connectTimeout: 10000,
+  });
 
-  // Add checks for environment variables
-  if (!ldapUrl || !adminDn || !adminPass || !baseDn) {
-    console.error('Missing required LDAP environment variables');
-    throw new Error('Missing required LDAP environment variables');
-  }
-
-  const usersColl = await dbc('users');
-
-  const ldapClient = new LdapClient({ url: ldapUrl });
-  const fetchedMails = new Set(); // Removed <string> type annotation
-  let added = 0;
+  // Initialize counters
+  let addedUsers = 0;
+  let deletedUsers = 0;
+  let processedUsers = 0;
 
   try {
-    // 1) Bind as LDAP admin
-    await ldapClient.bind(adminDn, adminPass);
+    // Bind to LDAP server
+    await ldapClient.bind(process.env.LDAP_DN, process.env.LDAP_PASS);
 
-    // 2) Search for all users
+    const usersCollection = await dbc('users');
+
+    // Keep track of active LDAP users for cleanup later
+    const activeEmails = new Set();
+
+    // Single search with PL filter
     const options = {
-      filter: '(c=PL)',
+      filter: '(&(mail=*)(c=PL))',
       scope: 'sub',
-      attributes: ['dn', 'mail'],
+      attributes: ['mail', 'dn', 'cn'],
     };
-    const entries = await ldapClient.search(baseDn, options); // Use baseDn and options
-    // 3) Insert only new users, do not modify existing ones
-    for (const entry of entries) {
-      // Iterate over entries directly
-      const mail = entry.mail; // Access mail property
-      if (!mail) continue; // Skip if mail is missing
 
-      const email = mail.toLowerCase(); // Convert to lowercase immediately
-      fetchedMails.add(email);
+    const searchResults = await ldapClient.search(
+      process.env.LDAP_BASE_DN,
+      options
+    );
 
-      const res = await usersColl.updateOne(
-        { email }, // Use the lowercase email for querying
-        {
-          // only on insert
-          $setOnInsert: {
-            email, // Store the lowercase email
+    processedUsers = searchResults.length;
+
+    // Process search results
+    for (const ldapUser of searchResults) {
+      if (ldapUser.mail) {
+        const email = Array.isArray(ldapUser.mail)
+          ? ldapUser.mail[0].toLowerCase()
+          : ldapUser.mail.toLowerCase();
+
+        // Add to active emails set
+        activeEmails.add(email);
+
+        // Check if user exists, if not create with default role
+        const user = await usersCollection.findOne({ email });
+        if (!user) {
+          await usersCollection.insertOne({
+            email,
             roles: ['user'],
-          },
-        },
-        { upsert: true }
-      );
-
-      if (res.upsertedCount) {
-        added++;
+            lastSyncedAt: new Date(),
+            displayName: ldapUser.cn || email,
+          });
+          addedUsers++;
+        } else {
+          // Update last synced timestamp
+          await usersCollection.updateOne(
+            { email },
+            { $set: { lastSyncedAt: new Date() } }
+          );
+        }
       }
     }
 
-    // 4) Optionally remove users not present in LDAP anymore
-    const toRemove = []; // Removed string[] type annotation
-    await usersColl.find({}, { projection: { email: 1 } }).forEach((doc) => {
-      // No change needed here as fetchedMails already contains lowercase emails
-      // and we assume emails in the DB are already consistently lowercase (or will be after this sync runs)
-      if (doc.email && !fetchedMails.has(doc.email)) {
-        // Check if doc.email exists
-        toRemove.push(doc.email);
+    // Remove users who no longer exist in LDAP
+    if (activeEmails.size > 0) {
+      try {
+        // Get all users from the database
+        const allUsers = await usersCollection.find({}).toArray();
+
+        // Find users that need to be removed (not in active set)
+        const usersToRemove = allUsers.filter(
+          (user) => !activeEmails.has(user.email)
+        );
+
+        if (usersToRemove.length > 0) {
+          // Remove users that no longer exist in LDAP
+          for (const userToRemove of usersToRemove) {
+            await usersCollection.deleteOne({ email: userToRemove.email });
+            deletedUsers++;
+          }
+        }
+      } catch (cleanupError) {
+        console.error('Error during cleanup of inactive users:', cleanupError);
       }
-    });
-
-    let removed = 0;
-    if (toRemove.length) {
-      const delRes = await usersColl.deleteMany({ email: { $in: toRemove } });
-      removed = delRes.deletedCount ?? 0;
     }
-
-    await ldapClient.unbind();
-    console.log(
-      `syncLdapUsers -> success at ${new Date().toLocaleString()} (Added: ${added}, Removed: ${removed})`
-    ); // Added log
-    return { added, removed };
   } catch (error) {
+    console.error('Error during syncing LDAP users:', error);
+  } finally {
+    // Always close the connection properly
     try {
       await ldapClient.unbind();
-    } catch {}
-    console.error('syncLdapUsers error:', error);
-    throw error; // Re-throw the error after logging
+    } catch (unbindError) {
+      // Check if this is just a "Connection closed" error which can be ignored
+      if (unbindError.lde_message !== 'Connection closed') {
+        console.error(
+          'Unexpected error while unbinding LDAP connection:',
+          unbindError
+        );
+      }
+    }
+    console.log(
+      `syncLdapUsers -> success at ${new Date().toLocaleString()} | Processed: ${processedUsers}, Added: ${addedUsers}, Deleted: ${deletedUsers}`
+    );
   }
 }
