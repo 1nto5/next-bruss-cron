@@ -70,17 +70,19 @@ async function syncR2platnikEmployees() {
 
       await employeesCollection.bulkWrite(bulkOps, { ordered: false });
 
-      // Get count of employees to be deleted
+      // Get count of employees to be deleted (exclude external employees)
       const employeesToDelete = await employeesCollection.countDocuments({
         identifier: { $nin: employees.map((emp) => emp.identifier) },
+        external: { $ne: true },
       });
 
       deletedEmployees = employeesToDelete;
 
-      // Delete employees that no longer exist in R2platnik
+      // Delete employees that no longer exist in R2platnik (but keep external employees)
       if (employeesToDelete > 0) {
         await employeesCollection.deleteMany({
           identifier: { $nin: employees.map((emp) => emp.identifier) },
+          external: { $ne: true },
         });
       }
     }
