@@ -100,4 +100,89 @@ async function sendPendingOvertimeRequestsApprovalNotifications() {
   );
 }
 
-export { sendPendingOvertimeRequestsApprovalNotifications };
+/**
+ * Checks for approved completed tasks and sends reminders to responsible employees
+ * to add attendance lists
+ */
+async function sendCompletedTaskAttendanceReminders() {
+  let totalCompletedTasks = 0;
+  let emailsSent = 0;
+  let emailErrors = 0;
+
+  try {
+    const coll = await dbc('production_overtime');
+
+    // Find approved tasks that are completed but may need attendance list updates
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    yesterday.setHours(23, 59, 59, 999);
+
+    const completedTasks = await coll
+      .find({
+        status: 'approved',
+        responsibleEmployee: { $exists: true, $ne: null, $ne: '' },
+        from: { $lte: yesterday },
+        to: { $lte: yesterday },
+      })
+      .toArray();
+
+    if (completedTasks.length === 0) {
+      console.log(
+        `sendCompletedTaskAttendanceReminders -> success at ${new Date().toLocaleString()} | Completed tasks: 0, Emails: 0`
+      );
+      return;
+    }
+
+    totalCompletedTasks = completedTasks.length;
+
+    // Group tasks by responsible employee email to avoid duplicate emails
+    const tasksByEmployee = new Map();
+
+    for (const task of completedTasks) {
+      const employeeEmail = task.responsibleEmployee;
+      if (!tasksByEmployee.has(employeeEmail)) {
+        tasksByEmployee.set(employeeEmail, []);
+      }
+      tasksByEmployee.get(employeeEmail).push(task);
+    }
+
+    // Send reminder to each responsible employee
+    for (const [employeeEmail, tasks] of tasksByEmployee) {
+      try {
+        const subject =
+          'Zlecenia wykonania pracy w godzinach nadliczbowych - produkcja - oczekuje na dodanie listy obecności';
+        const taskCount = tasks.length;
+        const message = `${
+          taskCount === 1
+            ? 'Zlecenie wykonania pracy w godzinach nadliczbowych - produkcja oczekuje'
+            : `${taskCount} zleceń wykonania pracy w godzinach nadliczbowych - produkcja oczekuje`
+        } na dodanie listy obecności.`;
+        const overtimeUrl = `${process.env.APP_URL}/production-overtime`;
+        const html = createEmailContent(message, overtimeUrl);
+
+        // Send email using existing API
+        const apiUrl = new URL(`${process.env.API_URL}/mailer`);
+        apiUrl.searchParams.append('to', employeeEmail);
+        apiUrl.searchParams.append('subject', subject);
+        apiUrl.searchParams.append('html', html);
+
+        await axios.get(apiUrl.toString());
+        emailsSent++;
+      } catch (error) {
+        console.error(`Error sending completed task reminder email:`, error);
+        emailErrors++;
+      }
+    }
+  } catch (error) {
+    console.error('Error in sendCompletedTaskAttendanceReminders:', error);
+  }
+
+  console.log(
+    `sendCompletedTaskAttendanceReminders -> success at ${new Date().toLocaleString()} | Completed tasks: ${totalCompletedTasks}, Emails: ${emailsSent}, Errors: ${emailErrors}`
+  );
+}
+
+export {
+  sendCompletedTaskAttendanceReminders,
+  sendPendingOvertimeRequestsApprovalNotifications,
+};

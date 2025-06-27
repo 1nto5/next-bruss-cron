@@ -3,7 +3,10 @@ import cron from 'node-cron';
 import { archiveScans } from './archive-scans.js';
 import { sendPendingDeviationApprovalNotifications } from './deviations-send-reminders.js';
 import { deviationsStatusUpdate } from './deviations-status-update.js';
-import { sendPendingOvertimeRequestsApprovalNotifications } from './production-overtime-send-reminders.js';
+import {
+  sendCompletedTaskAttendanceReminders,
+  sendPendingOvertimeRequestsApprovalNotifications,
+} from './production-overtime-send-reminders.js';
 import { syncLdapUsers } from './sync-ldap-users.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
 
@@ -20,6 +23,8 @@ cron.schedule('0 */2 * * *', deviationsStatusUpdate, {});
 // -------------------------------
 // Schedule sending of pending production overtime email notifications every workday at 3:00
 cron.schedule('0 3 * * 1-5', sendPendingOvertimeRequestsApprovalNotifications);
+// Schedule sending of completed task attendance reminders every workday at 9:00
+cron.schedule('0 9 * * 1-5', sendCompletedTaskAttendanceReminders);
 
 // Data synchronization tasks
 // -------------------------- s
