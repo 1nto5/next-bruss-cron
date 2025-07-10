@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import { archiveScans } from './archive-scans.js';
 import { sendPendingDeviationApprovalNotifications } from './deviations-send-reminders.js';
 import { deviationsStatusUpdate } from './deviations-status-update.js';
+import { sendHrTrainingEvaluationNotifications } from './hr-training-evaluation-notifications.js';
 import {
   sendCompletedTaskAttendanceReminders,
   sendPendingOvertimeRequestsApprovalNotifications,
@@ -25,6 +26,11 @@ cron.schedule('0 */2 * * *', deviationsStatusUpdate, {});
 cron.schedule('0 3 * * 1-5', sendPendingOvertimeRequestsApprovalNotifications);
 // Schedule sending of completed task attendance reminders every workday at 9:00
 cron.schedule('0 9 * * 1-5', sendCompletedTaskAttendanceReminders);
+
+// HR Training Evaluation Notifications
+// ------------------------------------
+// Schedule HR training evaluation deadline notifications every workday at 3:00
+cron.schedule('0 3 * * 1-5', sendHrTrainingEvaluationNotifications);
 
 // Data synchronization tasks
 // -------------------------- s
