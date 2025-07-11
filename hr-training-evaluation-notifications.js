@@ -319,6 +319,7 @@ export async function sendHrTrainingEvaluationNotifications() {
 
       // Check if HR training evaluation deadline has passed (date is today or earlier)
       if (parsedDeadline <= todaysDate) {
+        const supervisorEmail = convertNameToEmail(nameValue);
         const result = await sendHrTrainingEvaluationNotification(
           supervisorEmail,
           nameValue,
