@@ -186,12 +186,11 @@ async function sendHrTrainingEvaluationNotification(
       );
     }
 
-    const apiUrl = new URL(`${process.env.API_URL}/mailer`);
-    apiUrl.searchParams.append('to', supervisorEmail);
-    apiUrl.searchParams.append('subject', subject);
-    apiUrl.searchParams.append('html', html);
-
-    await axios.get(apiUrl.toString());
+    await axios.post(`${process.env.API_URL}/mailer`, {
+      to: supervisorEmail,
+      subject,
+      html,
+    });
 
     return { success: true, email: supervisorEmail };
   } catch (error) {
@@ -208,11 +207,11 @@ async function sendHrTrainingEvaluationNotification(
  */
 async function sendHrErrorOrSummaryEmail(subject, html) {
   try {
-    const apiUrl = new URL(`${process.env.API_URL}/mailer`);
-    apiUrl.searchParams.append('to', 'HR.mrg@bruss-group.com');
-    apiUrl.searchParams.append('subject', subject);
-    apiUrl.searchParams.append('html', html);
-    await axios.get(apiUrl.toString());
+    await axios.post(`${process.env.API_URL}/mailer`, {
+      to: 'HR.mrg@bruss-group.com',
+      subject,
+      html,
+    });
   } catch (error) {
     console.error(`Error sending HR error/summary email:`, error.message);
   }
