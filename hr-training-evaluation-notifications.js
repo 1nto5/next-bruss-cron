@@ -264,7 +264,6 @@ export async function sendHrTrainingEvaluationNotifications() {
     const trainingNameColIndex = excelColumnToIndex(
       HR_TRAINING_CONFIG.trainingNameColumn
     ); // Column C
-    const notificationSentColIndex = excelColumnToIndex('AA'); // Column AA for notification sent date
 
     // Get today's date for deadline checking
     const todaysDate = getTodaysDate();
@@ -330,15 +329,6 @@ export async function sendHrTrainingEvaluationNotifications() {
 
         if (result.success) {
           hrNotificationsSent++;
-          // Write the current date and time to column AA (Excel-compatible format)
-          const notificationCellAddress = XLSX.utils.encode_cell({
-            r: row,
-            c: notificationSentColIndex,
-          });
-          worksheet[notificationCellAddress] = {
-            t: 'd', // type: date
-            v: new Date(),
-          };
         } else {
           errors.push(result);
         }
@@ -406,9 +396,6 @@ export async function sendHrTrainingEvaluationNotifications() {
       'Podsumowanie powiadomień o ocenie szkoleń HR',
       summaryHtml
     );
-
-    // Save the workbook after processing all rows
-    XLSX.writeFile(workbook, HR_TRAINING_CONFIG.excelFilePath);
   } catch (error) {
     console.error('Error in sendHrTrainingEvaluationNotifications:', error);
   }
