@@ -236,7 +236,7 @@ export async function sendHrTrainingEvaluationNotifications() {
       // Send notification to HR department (Polish)
       await sendHrErrorOrSummaryEmail(
         'Brak pliku do oceny szkoleń HR',
-        `<p>Nie odnaleziono pliku z oceną szkoleń HR pod wskazaną ścieżką:<br/><strong>${HR_TRAINING_CONFIG.excelFilePath}</strong></p><p>Prosimy o sprawdzenie dostępności pliku.</p>`
+        `<p>Nie odnaleziono pliku z oceną szkoleń HR pod wskazaną ścieżką:<br/><strong>${HR_TRAINING_CONFIG.excelFilePath}</strong></p>`
       );
       return;
     }
