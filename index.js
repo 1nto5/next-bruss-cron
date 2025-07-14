@@ -43,3 +43,6 @@ cron.schedule('0 16 * * 1-5', syncLdapUsers);
 // ----------------
 // Schedule archiving of scans every Sunday at 22:00
 cron.schedule('0 22 * * 0', archiveScans);
+
+// Schedule logging of oven sensors every 5 seconds
+// cron.schedule('*/5 * * * * *', logOvenSensors);
