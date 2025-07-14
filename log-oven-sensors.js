@@ -42,16 +42,15 @@ async function fetchSensorData(ip) {
   return await res.json();
 }
 
-// Append log entry to oven_processes document
-async function appendLogToProcess(_id, logEntry) {
-  const ovenProcessesCol = await dbc('oven_processes');
-  await ovenProcessesCol.updateOne(
-    { _id },
-    {
-      $push: { temperatureLogs: logEntry },
-      $set: { updatedAt: new Date() },
-    }
-  );
+// Append log entry to oven_temperature_logs collection
+async function logOvenTemperature(oven, processIds, sensorData) {
+  const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
+  await ovenTemperatureLogsCol.insertOne({
+    oven,
+    processIds,
+    timestamp: new Date(),
+    sensorData,
+  });
 }
 
 // Logging helpers to control output by environment
@@ -86,7 +85,7 @@ async function logOvenSensors() {
       }
       ovenToProcesses[proc.oven].push(proc);
     }
-    // For each oven, fetch sensor data once and append to all processes
+    // For each oven, fetch sensor data once and log to oven_temperature_logs
     for (const [oven, processes] of Object.entries(ovenToProcesses)) {
       const ip = ovenMap[oven];
       if (!ip) {
@@ -95,15 +94,12 @@ async function logOvenSensors() {
       }
       try {
         const sensorData = await fetchSensorData(ip);
-        const logEntry = {
-          timestamp: new Date(),
-          sensorData,
-        };
-        for (const proc of processes) {
-          await appendLogToProcess(proc._id, logEntry);
-        }
+        const processIds = processes.map((proc) => proc._id);
+        await logOvenTemperature(oven, processIds, sensorData);
         logInfo(
-          `Logged sensor data for oven ${oven} (${ip}) to ${processes.length} process(es)`
+          `Logged sensor data for oven ${oven} (${ip}) to oven_temperature_logs with processIds: [${processIds.join(
+            ', '
+          )}]`
         );
       } catch (err) {
         logError(
