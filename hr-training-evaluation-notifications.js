@@ -158,7 +158,7 @@ function excelColumnToIndex(letter) {
 /**
  * Send HR training evaluation reminder email notification
  */
-async function sendHrTrainingEvaluationNotification(
+export async function sendHrTrainingEvaluationNotification(
   supervisorEmail,
   supervisorName,
   trainingName,
@@ -399,9 +399,4 @@ export async function sendHrTrainingEvaluationNotifications() {
   } catch (error) {
     console.error('Error in sendHrTrainingEvaluationNotifications:', error);
   }
-}
-
-if (require.main === module && process.env.NODE_ENV === 'development') {
-  console.log('Starting HR Training Evaluation Notification Script...');
-  sendHrTrainingEvaluationNotifications();
 }
