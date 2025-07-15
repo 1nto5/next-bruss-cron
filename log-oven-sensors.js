@@ -118,5 +118,7 @@ export { logOvenSensors };
 
 if (require.main === module) {
   logInfo('Starting Oven Sensor Logging Script...');
-  logOvenSensors();
+  setInterval(() => {
+    logOvenSensors();
+  }, 15 * 1000); // Run every 15 minutes
 }
