@@ -207,8 +207,14 @@ export async function sendHrTrainingEvaluationNotification(
  */
 async function sendHrErrorOrSummaryEmail(subject, html) {
   try {
+    // Send to both HR department and Adrian Antosiak
+    const recipients = [
+      'HR.mrg@bruss-group.com',
+      'adrian.antosiak@bruss-group.com',
+    ];
+
     await axios.post(`${process.env.API_URL}/mailer`, {
-      to: 'HR.mrg@bruss-group.com',
+      to: recipients.join(','), // Multiple recipients separated by comma
       subject,
       html,
     });
