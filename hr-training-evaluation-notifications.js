@@ -396,7 +396,9 @@ export async function sendHrTrainingEvaluationNotifications() {
           : ''
       }
       <p>Czas trwania: ${duration}s</p>
-      <p>Uruchomienie skryptu: ${startTime.toLocaleString()} - ${endTime.toLocaleString()}</p>
+      <p>Uruchomienie skryptu: ${startTime.toLocaleString(
+        'pl-PL'
+      )} - ${endTime.toLocaleString('pl-PL')}</p>
     `;
     await sendHrErrorOrSummaryEmail(
       'Podsumowanie powiadomień o ocenie szkoleń HR',
