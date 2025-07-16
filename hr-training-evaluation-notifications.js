@@ -309,7 +309,7 @@ export async function sendHrTrainingEvaluationNotifications() {
         invalidSupervisorRows.push({
           row: row + 1,
           nameValue,
-          reason: 'Brak lub nieprawidłowe nazwisko przełożonego',
+          reason: 'Brak lub nieprawidłowe dane przełożonego',
         });
         continue;
       }
@@ -370,7 +370,7 @@ export async function sendHrTrainingEvaluationNotifications() {
       <h3>Podsumowanie powiadomień o ocenie szkoleń HR</h3>
       <p><strong>Przetworzone wiersze:</strong> ${processedRows}</p>
       <p><strong>Wysłane powiadomienia:</strong> ${hrNotificationsSent}</p>
-      <p><strong>Błędy (brakujące/nieprawidłowe nazwiska przełożonych):</strong> ${
+      <p><strong>Błędy (brakujące/nieprawidłowe dane przełożonych):</strong> ${
         invalidSupervisorRows.length
       }</p>
       ${
