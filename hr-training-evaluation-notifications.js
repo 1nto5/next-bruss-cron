@@ -1,18 +1,20 @@
-import axios from "axios";
-import dotenv from "dotenv";
-import fs from "fs";
-import XLSX from "xlsx";
+import axios from 'axios';
+import dotenv from 'dotenv';
+import fs from 'fs';
+import XLSX from 'xlsx';
 
 dotenv.config();
 
 // HR Training Evaluation Configuration
 const HR_TRAINING_CONFIG = {
-  excelFilePath: "C:\\cron-temp-files\\hr-trainings.xlsx",
-  evaluationDeadlineColumn: process.env.HR_TRAINING_DEADLINE_COLUMN || "Z", // Column Z contains the deadline date
-  supervisorNameColumn: process.env.HR_TRAINING_NAME_COLUMN || "W", // Column W contains supervisor names (surname firstname)
-  trainingNameColumn: process.env.HR_TRAINING_TRAINING_NAME_COLUMN || "C", // Column C contains training names
-  traineeNameColumn: process.env.HR_TRAINING_TRAINEE_NAME_COLUMN || "J", // Column J contains trainee names (surname firstname)
+  excelFilePath: 'C:\\cron-temp-files\\hr-trainings.xlsx',
+  evaluationDeadlineColumn: process.env.HR_TRAINING_DEADLINE_COLUMN || 'Z', // Column Z contains the deadline date
+  supervisorNameColumn: process.env.HR_TRAINING_NAME_COLUMN || 'W', // Column W contains supervisor names (surname firstname)
+  trainingNameColumn: process.env.HR_TRAINING_TRAINING_NAME_COLUMN || 'C', // Column C contains training names
+  traineeNameColumn: process.env.HR_TRAINING_TRAINEE_NAME_COLUMN || 'J', // Column J contains trainee names (surname firstname)
   sheetName: process.env.HR_TRAINING_SHEET_NAME || null, // null means use first sheet
+  evaluationResultColumn:
+    process.env.HR_TRAINING_EVALUATION_RESULT_COLUMN || 'AC', // Column AC contains evaluation results
 };
 
 /**
@@ -20,29 +22,29 @@ const HR_TRAINING_CONFIG = {
  */
 function removePlPolishCharacters(text) {
   const polishToLatin = {
-    ą: "a",
-    ć: "c",
-    ę: "e",
-    ł: "l",
-    ń: "n",
-    ó: "o",
-    ś: "s",
-    ź: "z",
-    ż: "z",
-    Ą: "A",
-    Ć: "C",
-    Ę: "E",
-    Ł: "L",
-    Ń: "N",
-    Ó: "O",
-    Ś: "S",
-    Ź: "Z",
-    Ż: "Z",
+    ą: 'a',
+    ć: 'c',
+    ę: 'e',
+    ł: 'l',
+    ń: 'n',
+    ó: 'o',
+    ś: 's',
+    ź: 'z',
+    ż: 'z',
+    Ą: 'A',
+    Ć: 'C',
+    Ę: 'E',
+    Ł: 'L',
+    Ń: 'N',
+    Ó: 'O',
+    Ś: 'S',
+    Ź: 'Z',
+    Ż: 'Z',
   };
 
   return text.replace(
     /[ąćęłńóśźżĄĆĘŁŃÓŚŹŻ]/g,
-    (char) => polishToLatin[char] || char,
+    (char) => polishToLatin[char] || char
   );
 }
 
@@ -50,7 +52,7 @@ function removePlPolishCharacters(text) {
  * Convert "Surname Firstname" to "firstname.surname@bruss-group.com"
  */
 function convertNameToEmail(fullName) {
-  if (!fullName || typeof fullName !== "string") {
+  if (!fullName || typeof fullName !== 'string') {
     return null;
   }
 
@@ -59,7 +61,7 @@ function convertNameToEmail(fullName) {
 
   if (nameParts.length < 2) {
     console.warn(
-      `Invalid name format: "${fullName}" - expected "Surname Firstname"`,
+      `Invalid name format: "${fullName}" - expected "Surname Firstname"`
     );
     return null;
   }
@@ -82,18 +84,18 @@ function convertNameToEmail(fullName) {
 function createHrTrainingEvaluationEmailContent(
   supervisorName,
   trainingName,
-  evaluationDeadline,
+  evaluationDeadline
 ) {
   const formattedDate = new Date(evaluationDeadline).toLocaleDateString(
-    "pl-PL",
+    'pl-PL'
   );
   const firstName = supervisorName
-    ? supervisorName.split(" ")[1] || supervisorName
-    : "";
+    ? supervisorName.split(' ')[1] || supervisorName
+    : '';
 
   return `
     <div>
-      <p>Dzień dobry${firstName ? ` ${firstName}` : ""},</p>
+      <p>Dzień dobry${firstName ? ` ${firstName}` : ''},</p>
       <p>W dniu <strong>${formattedDate}</strong> mija termin wymaganego dokonania oceny efektywności zrealizowanych szkoleń w Twoim zespole.</p>
       <p><strong>Szkolenie:</strong> ${trainingName}</p>
       <p>
@@ -127,7 +129,7 @@ function parseTrainingEvaluationDate(cellValue) {
   }
 
   // If it's an Excel serial number
-  if (typeof cellValue === "number") {
+  if (typeof cellValue === 'number') {
     // Excel serial date conversion
     const excelEpoch = new Date(1900, 0, 1);
     const days = cellValue - 2; // Excel has a leap year bug for 1900
@@ -135,7 +137,7 @@ function parseTrainingEvaluationDate(cellValue) {
   }
 
   // If it's a string, try to parse it
-  if (typeof cellValue === "string") {
+  if (typeof cellValue === 'string') {
     const parsed = new Date(cellValue);
     return isNaN(parsed.getTime()) ? null : parsed;
   }
@@ -149,7 +151,7 @@ function parseTrainingEvaluationDate(cellValue) {
 function excelColumnToIndex(letter) {
   let result = 0;
   for (let i = 0; i < letter.length; i++) {
-    result = result * 26 + (letter.charCodeAt(i) - "A".charCodeAt(0) + 1);
+    result = result * 26 + (letter.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
   }
   return result - 1;
 }
@@ -162,7 +164,7 @@ export async function sendHrTrainingEvaluationNotification(
   supervisorName,
   trainingName,
   evaluationDeadline,
-  excelFilePath,
+  excelFilePath
 ) {
   try {
     const subject = `Przypomnienie HR: Ocena efektywności szkoleń - ${trainingName}`;
@@ -170,18 +172,18 @@ export async function sendHrTrainingEvaluationNotification(
       supervisorName,
       trainingName,
       evaluationDeadline,
-      excelFilePath,
+      excelFilePath
     );
 
-    if (process.env.NODE_ENV === "development") {
-      console.log("[DEVELOPMENT] Would send email with:");
-      console.log("To:", supervisorEmail);
-      console.log("Subject:", subject);
-      console.log("HTML:", html);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEVELOPMENT] Would send email with:');
+      console.log('To:', supervisorEmail);
+      console.log('Subject:', subject);
+      console.log('HTML:', html);
     }
-    if (process.env.NODE_ENV === "development") {
+    if (process.env.NODE_ENV === 'development') {
       console.log(
-        `[DEV] Sending email to: ${supervisorEmail} | Subject: ${subject}`,
+        `[DEV] Sending email to: ${supervisorEmail} | Subject: ${subject}`
       );
     }
 
@@ -195,7 +197,7 @@ export async function sendHrTrainingEvaluationNotification(
   } catch (error) {
     console.error(
       `Error sending HR training evaluation email to ${supervisorEmail}:`,
-      error.message,
+      error.message
     );
     return { success: false, email: supervisorEmail, error: error.message };
   }
@@ -208,12 +210,12 @@ async function sendHrErrorOrSummaryEmail(subject, html) {
   try {
     // Send to both HR department and Adrian Antosiak
     const recipients = [
-      "HR.mrg@bruss-group.com",
-      "adrian.antosiak@bruss-group.com",
+      'HR.mrg@bruss-group.com',
+      'adrian.antosiak@bruss-group.com',
     ];
 
     await axios.post(`${process.env.API_URL}/mailer`, {
-      to: recipients.join(","), // Multiple recipients separated by comma
+      to: recipients.join(','), // Multiple recipients separated by comma
       subject,
       html,
     });
@@ -228,19 +230,19 @@ async function sendHrErrorOrSummaryEmail(subject, html) {
 export async function sendHrTrainingEvaluationNotifications() {
   const startTime = new Date();
   console.log(
-    `Starting HR training evaluation deadline notifications check at ${startTime.toLocaleString()}`,
+    `Starting HR training evaluation deadline notifications check at ${startTime.toLocaleString()}`
   );
 
   try {
     // Check if HR training Excel file exists
     if (!fs.existsSync(HR_TRAINING_CONFIG.excelFilePath)) {
       console.error(
-        `HR training Excel file not found: ${HR_TRAINING_CONFIG.excelFilePath}`,
+        `HR training Excel file not found: ${HR_TRAINING_CONFIG.excelFilePath}`
       );
       // Send notification to HR department (Polish)
       await sendHrErrorOrSummaryEmail(
-        "Brak pliku do oceny szkoleń HR",
-        `<p>Nie odnaleziono pliku z oceną szkoleń HR pod wskazaną ścieżką:<br/><strong>${HR_TRAINING_CONFIG.excelFilePath}</strong></p>`,
+        'Brak pliku do oceny szkoleń HR',
+        `<p>Nie odnaleziono pliku z oceną szkoleń HR pod wskazaną ścieżką:<br/><strong>${HR_TRAINING_CONFIG.excelFilePath}</strong></p>`
       );
       return;
     }
@@ -257,34 +259,38 @@ export async function sendHrTrainingEvaluationNotifications() {
     const worksheet = workbook.Sheets[sheetName];
 
     // Get the range of the HR training worksheet
-    const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+    const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
 
     // Convert HR training column letters to indices
     const evaluationDeadlineColIndex = excelColumnToIndex(
-      HR_TRAINING_CONFIG.evaluationDeadlineColumn,
+      HR_TRAINING_CONFIG.evaluationDeadlineColumn
     ); // Column Z
     const supervisorNameColIndex = excelColumnToIndex(
-      HR_TRAINING_CONFIG.supervisorNameColumn,
+      HR_TRAINING_CONFIG.supervisorNameColumn
     ); // Column W
     const trainingNameColIndex = excelColumnToIndex(
-      HR_TRAINING_CONFIG.trainingNameColumn,
+      HR_TRAINING_CONFIG.trainingNameColumn
     ); // Column C
     const traineeNameColIndex = excelColumnToIndex(
-      HR_TRAINING_CONFIG.traineeNameColumn,
+      HR_TRAINING_CONFIG.traineeNameColumn
     ); // Column J
+    const evaluationResultColIndex = excelColumnToIndex(
+      HR_TRAINING_CONFIG.evaluationResultColumn
+    ); // Column AC
 
     // Get today's date for deadline checking
     const todaysDate = getTodaysDate();
     console.log(
       `Checking for HR training evaluation deadlines on or before: ${todaysDate.toLocaleDateString(
-        "pl-PL",
-      )}`,
+        'pl-PL'
+      )}`
     );
 
     let processedRows = 0;
     let hrNotificationsSent = 0;
     let errors = [];
     let invalidSupervisorRows = [];
+    let skippedEvaluations = 0;
 
     // Process each row in the HR training file (start from row 8 to skip headers and functional rows 1-7)
     for (let row = 7; row <= range.e.r; row++) {
@@ -307,24 +313,39 @@ export async function sendHrTrainingEvaluationNotifications() {
         r: row,
         c: traineeNameColIndex,
       });
+      const evaluationResultCellAddress = XLSX.utils.encode_cell({
+        r: row,
+        c: evaluationResultColIndex,
+      });
 
       const deadlineValue = worksheet[deadlineCellAddress]?.v;
       const nameValue = worksheet[nameCellAddress]?.v;
       const trainingValue = worksheet[trainingCellAddress]?.v;
       const traineeValue = worksheet[traineeCellAddress]?.v;
+      const evaluationResultValue = worksheet[evaluationResultCellAddress]?.v;
 
       // Skip rows without trainee name (column J)
-      if (!traineeValue || typeof traineeValue !== "string") {
+      if (!traineeValue || typeof traineeValue !== 'string') {
         continue;
       }
 
       // Skip rows without supervisor name or training name
-      if (!nameValue || typeof nameValue !== "string") {
+      if (!nameValue || typeof nameValue !== 'string') {
         invalidSupervisorRows.push({
           row: row + 1,
           nameValue,
-          reason: "Brak lub nieprawidłowe dane przełożonego",
+          reason: 'Brak lub nieprawidłowe dane przełożonego',
         });
+        continue;
+      }
+
+      // Skip if evaluation result exists in column AC
+      if (
+        evaluationResultValue !== undefined &&
+        evaluationResultValue !== null &&
+        evaluationResultValue !== ''
+      ) {
+        skippedEvaluations = (skippedEvaluations || 0) + 1;
         continue;
       }
 
@@ -342,7 +363,7 @@ export async function sendHrTrainingEvaluationNotifications() {
           nameValue,
           trainingValue,
           parsedDeadline,
-          HR_TRAINING_CONFIG.excelFilePath,
+          HR_TRAINING_CONFIG.excelFilePath
         );
 
         if (result.success) {
@@ -362,19 +383,19 @@ export async function sendHrTrainingEvaluationNotifications() {
     const duration = Math.round((endTime - startTime) / 1000);
 
     console.log(
-      `HR training evaluation notifications completed at ${endTime.toLocaleString()}`,
+      `HR training evaluation notifications completed at ${endTime.toLocaleString()}`
     );
     console.log(
-      `Duration: ${duration}s | Processed: ${processedRows} rows | HR notifications sent: ${hrNotificationsSent}`,
+      `Duration: ${duration}s | Processed: ${processedRows} rows | HR notifications sent: ${hrNotificationsSent}`
     );
 
     if (errors.length > 0) {
       console.log(
-        `HR training evaluation errors encountered: ${errors.length}`,
+        `HR training evaluation errors encountered: ${errors.length}`
       );
       errors.forEach((error) => {
         console.error(
-          `Failed to send HR training notification to ${error.email}: ${error.error}`,
+          `Failed to send HR training notification to ${error.email}: ${error.error}`
         );
       });
     }
@@ -392,31 +413,32 @@ export async function sendHrTrainingEvaluationNotifications() {
           ? `<ul>${invalidSupervisorRows
               .map(
                 (e) =>
-                  `<li>Wiersz ${e.row}: ${e.nameValue || "(puste)"} - ${
+                  `<li>Wiersz ${e.row}: ${e.nameValue || '(puste)'} - ${
                     e.reason
-                  }</li>`,
+                  }</li>`
               )
-              .join("")}</ul>`
-          : ""
+              .join('')}</ul>`
+          : ''
       }
+      <p><strong>Wykonane oceny bez aktualizacji daty:</strong> ${skippedEvaluations}</p>
       <p><strong>Inne błędy powiadomień:</strong> ${errors.length}</p>
       ${
         errors.length > 0
           ? `<ul>${errors
               .map((e) => `<li>${e.email}: ${e.error}</li>`)
-              .join("")}</ul>`
-          : ""
+              .join('')}</ul>`
+          : ''
       }
       <p>Czas trwania: ${duration}s</p>
       <p>Uruchomienie skryptu: ${startTime.toLocaleString(
-        "pl-PL",
-      )} - ${endTime.toLocaleString("pl-PL")}</p>
+        'pl-PL'
+      )} - ${endTime.toLocaleString('pl-PL')}</p>
     `;
     await sendHrErrorOrSummaryEmail(
-      "Podsumowanie powiadomień o ocenie szkoleń HR",
-      summaryHtml,
+      'Podsumowanie powiadomień o ocenie szkoleń HR',
+      summaryHtml
     );
   } catch (error) {
-    console.error("Error in sendHrTrainingEvaluationNotifications:", error);
+    console.error('Error in sendHrTrainingEvaluationNotifications:', error);
   }
 }
