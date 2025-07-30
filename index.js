@@ -4,6 +4,7 @@ import { archiveScans } from './archive-scans.js';
 import { sendPendingDeviationApprovalNotifications } from './deviations-send-reminders.js';
 import { deviationsStatusUpdate } from './deviations-status-update.js';
 import { sendHrTrainingEvaluationNotifications } from './hr-training-evaluation-notifications.js';
+import { logOvenSensors } from './log-oven-sensors.js';
 import {
   sendCompletedTaskAttendanceReminders,
   sendPendingOvertimeRequestsApprovalNotifications,
