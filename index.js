@@ -46,4 +46,4 @@ cron.schedule('0 16 * * 1-5', syncLdapUsers);
 cron.schedule('0 22 * * 0', archiveScans);
 
 // Schedule logging of oven sensors every 1 minute
-cron.schedule('0 * * * * *', logOvenSensors);
+cron.schedule('* * * * *', logOvenSensors);
