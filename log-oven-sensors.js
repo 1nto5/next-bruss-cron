@@ -45,10 +45,34 @@ async function fetchSensorData(ip) {
 // Append log entry to oven_temperature_logs collection
 async function logOvenTemperature(oven, processIds, sensorData) {
   const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
+  const ovenProcessesCol = await dbc('oven_processes');
+  const timestamp = new Date();
+
+  // Check each process to see if this is its first temperature log
+  for (const processId of processIds) {
+    // Check if this process already has any temperature logs
+    const existingLog = await ovenTemperatureLogsCol.findOne({
+      processIds: processId,
+    });
+
+    if (!existingLog) {
+      // This is the first temperature log for this process, update its startTime
+      const updateResult = await ovenProcessesCol.updateOne(
+        { _id: processId },
+        { $set: { startTime: timestamp } }
+      );
+      if (updateResult.modifiedCount > 0) {
+        logInfo(
+          `Updated startTime for process ${processId} to ${timestamp.toISOString()}`
+        );
+      }
+    }
+  }
+
   await ovenTemperatureLogsCol.insertOne({
     oven,
     processIds,
-    timestamp: new Date(),
+    timestamp,
     sensorData,
   });
 }
