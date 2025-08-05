@@ -23,10 +23,10 @@ async function getOvenConfigs() {
   return map;
 }
 
-// Helper to get all running oven processes
-async function getRunningOvenProcesses() {
+// Helper to get all active oven processes (running or prepared)
+async function getActiveOvenProcesses() {
   const ovenProcessesCol = await dbc('oven_processes');
-  return ovenProcessesCol.find({ status: 'running' }).toArray();
+  return ovenProcessesCol.find({ status: { $in: ['running', 'prepared'] } }).toArray();
 }
 
 // Fetch sensor data from Arduino at given IP
@@ -56,17 +56,18 @@ async function logOvenTemperature(oven, processIds, sensorData) {
     });
 
     if (!existingLog) {
-      // This is the first temperature log for this process, update its startTime
+      // This is the first temperature log for this process, update its startTime and status
       const updateResult = await ovenProcessesCol.updateOne(
         { _id: processId },
-        { $set: { startTime: timestamp } }
+        { $set: { startTime: timestamp, status: 'running' } }
       );
       if (updateResult.modifiedCount > 0) {
         logInfo(
-          `Updated startTime for process ${processId} to ${timestamp.toISOString()}`
+          `Updated process ${processId}: set startTime to ${timestamp.toISOString()} and status to 'running'`
         );
       }
     }
+    // If this is not the first temperature reading, we assume the process is already running
   }
 
   await ovenTemperatureLogsCol.insertOne({
@@ -96,14 +97,14 @@ function logError(...args) {
 async function logOvenSensors() {
   try {
     const ovenMap = await getOvenConfigs();
-    const runningProcesses = await getRunningOvenProcesses();
-    if (runningProcesses.length === 0) {
-      logInfo('No running oven processes found.');
+    const activeProcesses = await getActiveOvenProcesses();
+    if (activeProcesses.length === 0) {
+      logInfo('No active oven processes found.');
       return;
     }
     // Group processes by oven name
     const ovenToProcesses = {};
-    for (const proc of runningProcesses) {
+    for (const proc of activeProcesses) {
       if (!ovenToProcesses[proc.oven]) {
         ovenToProcesses[proc.oven] = [];
       }
