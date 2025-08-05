@@ -117,6 +117,10 @@ async function logOvenSensors() {
         logWarn(`No IP configured for oven: ${oven}`);
         continue;
       }
+      
+      // Check if all processes for this oven are in 'prepared' status
+      const hasOnlyPreparedProcesses = processes.every(proc => proc.status === 'prepared');
+      
       try {
         const sensorData = await fetchSensorData(ip);
         const processIds = processes.map((proc) => proc._id);
@@ -127,10 +131,13 @@ async function logOvenSensors() {
           )}]`
         );
       } catch (err) {
-        logError(
-          `Failed to fetch/log data for oven ${oven} (${ip}):`,
-          err.message
-        );
+        // Only log error if not all processes are in 'prepared' status
+        if (!hasOnlyPreparedProcesses) {
+          logError(
+            `Failed to fetch/log data for oven ${oven} (${ip}):`,
+            err.message
+          );
+        }
       }
     }
   } catch (err) {
