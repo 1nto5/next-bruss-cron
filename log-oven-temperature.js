@@ -121,6 +121,15 @@ async function logOvenTemperature() {
       // Check if all processes for this oven are in 'prepared' status
       const hasOnlyPreparedProcesses = processes.every(proc => proc.status === 'prepared');
       
+      // Check if any process has been running for less than 1 hour
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const hasRecentRunningProcess = processes.some(proc => {
+        // Process is considered recent if:
+        // 1. It's in 'running' status AND
+        // 2. Either has no startTime OR startTime is within last hour
+        return proc.status === 'running' && (!proc.startTime || new Date(proc.startTime) > oneHourAgo);
+      });
+      
       try {
         const sensorData = await fetchSensorData(ip);
         const processIds = processes.map((proc) => proc._id);
@@ -131,13 +140,20 @@ async function logOvenTemperature() {
           )}]`
         );
       } catch (err) {
-        // Only log error if not all processes are in 'prepared' status
-        if (!hasOnlyPreparedProcesses) {
+        // Only log error if:
+        // 1. Not all processes are in 'prepared' status AND
+        // 2. At least one process has been running for less than 1 hour
+        if (!hasOnlyPreparedProcesses && hasRecentRunningProcess) {
           const errorContext = {
             oven,
             ip,
             processIds: processes.map(p => p._id),
-            processStatuses: processes.map(p => ({ id: p._id, status: p.status, hydraBatch: p.hydraBatch })),
+            processStatuses: processes.map(p => ({ 
+              id: p._id, 
+              status: p.status, 
+              hydraBatch: p.hydraBatch,
+              startTime: p.startTime 
+            })),
             errorType: err.name,
             errorCode: err.code
           };
@@ -150,6 +166,7 @@ async function logOvenTemperature() {
           err.context = errorContext;
           throw err;
         }
+        // Silently continue if all running processes are older than 1 hour
       }
     }
   } catch (err) {
