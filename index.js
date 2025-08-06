@@ -13,6 +13,7 @@ import { syncLdapUsers } from './sync-ldap-users.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
 import { executeWithErrorNotification } from './lib/error-notifier.js';
 import { setupHealthCheck } from './lib/health-check.js';
+import { errorCollector } from './lib/error-collector.js';
 
 dotenv.config();
 
@@ -69,4 +70,11 @@ cron.schedule('0 22 * * 0', async () => {
 // Schedule logging of oven sensors every 1 minute
 cron.schedule('* * * * *', async () => {
   await executeWithErrorNotification('logOvenTemperature', logOvenTemperature);
+});
+
+// Error reporting tasks
+// ---------------------
+// Schedule batch error notification every hour at minute 0
+cron.schedule('0 * * * *', async () => {
+  await errorCollector.sendBatchNotification();
 });
