@@ -45,6 +45,7 @@ async function deviationsStatusUpdate() {
     );
   } catch (error) {
     console.error('Error updating deviation statuses:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   }
 }
 

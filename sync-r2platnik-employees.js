@@ -88,6 +88,7 @@ async function syncR2platnikEmployees() {
     }
   } catch (error) {
     console.error('Error during syncing employees:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   } finally {
     await sql.close();
     console.log(

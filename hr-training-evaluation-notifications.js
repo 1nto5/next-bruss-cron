@@ -442,5 +442,6 @@ export async function sendHrTrainingEvaluationNotifications() {
     );
   } catch (error) {
     console.error('Error in sendHrTrainingEvaluationNotifications:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   }
 }

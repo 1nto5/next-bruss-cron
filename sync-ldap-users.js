@@ -87,10 +87,12 @@ export async function syncLdapUsers() {
         }
       } catch (cleanupError) {
         console.error('Error during cleanup of inactive users:', cleanupError);
+        throw cleanupError; // Re-throw to allow executeWithErrorNotification to handle it
       }
     }
   } catch (error) {
     console.error('Error during syncing LDAP users:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   } finally {
     // Always close the connection properly
     try {

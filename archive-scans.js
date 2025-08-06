@@ -51,6 +51,7 @@ async function archiveScans() {
     );
   } catch (error) {
     console.error('Error during archiving scans:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   }
 }
 

@@ -93,6 +93,7 @@ async function sendOvertimeApprovalReminders() {
     }
   } catch (error) {
     console.error('Error in sendOvertimeNotifications:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   }
 
   console.log(
@@ -175,6 +176,7 @@ async function sendCompletedTaskAttendanceReminders() {
     }
   } catch (error) {
     console.error('Error in sendCompletedTaskAttendanceReminders:', error);
+    throw error; // Re-throw to allow executeWithErrorNotification to handle it
   }
 
   console.log(

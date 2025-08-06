@@ -133,16 +133,32 @@ async function logOvenTemperature() {
       } catch (err) {
         // Only log error if not all processes are in 'prepared' status
         if (!hasOnlyPreparedProcesses) {
+          const errorContext = {
+            oven,
+            ip,
+            processIds: processes.map(p => p._id),
+            processStatuses: processes.map(p => ({ id: p._id, status: p.status, hydraBatch: p.hydraBatch })),
+            errorType: err.name,
+            errorCode: err.code
+          };
           logError(
             `Failed to fetch/log data for oven ${oven} (${ip}):`,
-            err.message
+            err.message,
+            '\nContext:', JSON.stringify(errorContext, null, 2)
           );
+          // Add context to error for better notification
+          err.context = errorContext;
+          throw err;
         }
       }
     }
   } catch (err) {
     logError('Script error:', err);
-    // Do not exit process when used as a cron job
+    // Pass error with context to notification system
+    if (!err.context) {
+      err.context = { message: 'General script error in logOvenTemperature' };
+    }
+    throw err; // Re-throw to allow executeWithErrorNotification to handle it
   }
 }
 
