@@ -18,7 +18,7 @@ function createEmailContent(message, overtimeUrl) {
 /**
  * Sends email notifications to plant managers about pending overtime requests
  */
-async function sendPendingOvertimeRequestsApprovalNotifications() {
+async function sendOvertimeApprovalReminders() {
   let totalRequests = 0;
   let totalManagers = 0;
   let emailsSent = 0;
@@ -32,7 +32,7 @@ async function sendPendingOvertimeRequestsApprovalNotifications() {
 
     if (pendingRequests.length === 0) {
       console.log(
-        `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} | Pending: 0, Emails: 0`
+        `sendOvertimeApprovalReminders -> success at ${new Date().toLocaleString()} | Pending: 0, Emails: 0`
       );
       return;
     }
@@ -48,7 +48,7 @@ async function sendPendingOvertimeRequestsApprovalNotifications() {
 
     if (plantManagers.length === 0) {
       console.log(
-        `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} | Pending: ${totalRequests}, Managers: 0, Emails: 0`
+        `sendOvertimeApprovalReminders -> success at ${new Date().toLocaleString()} | Pending: ${totalRequests}, Managers: 0, Emails: 0`
       );
       return;
     }
@@ -96,7 +96,7 @@ async function sendPendingOvertimeRequestsApprovalNotifications() {
   }
 
   console.log(
-    `sendPendingProductionOvertimeEmailNotifications -> success at ${new Date().toLocaleString()} | Pending: ${totalRequests}, Managers: ${totalManagers}, Emails: ${emailsSent}, Errors: ${emailErrors}`
+    `sendOvertimeApprovalReminders -> success at ${new Date().toLocaleString()} | Pending: ${totalRequests}, Managers: ${totalManagers}, Emails: ${emailsSent}, Errors: ${emailErrors}`
   );
 }
 
@@ -184,5 +184,6 @@ async function sendCompletedTaskAttendanceReminders() {
 
 export {
   sendCompletedTaskAttendanceReminders,
-  sendPendingOvertimeRequestsApprovalNotifications,
+  sendOvertimeApprovalReminders,
+  sendOvertimeApprovalReminders as sendPendingOvertimeRequestsApprovalNotifications,
 };

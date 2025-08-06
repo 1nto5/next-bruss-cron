@@ -208,11 +208,13 @@ export async function sendHrTrainingEvaluationNotification(
  */
 async function sendHrErrorOrSummaryEmail(subject, html) {
   try {
-    // Send to both HR department and Adrian Antosiak
-    const recipients = [
-      'HR.mrg@bruss-group.com',
-      'adrian.antosiak@bruss-group.com',
-    ];
+    // Get HR email from environment variable
+    const hrEmail = process.env.HR_EMAIL;
+    if (!hrEmail) {
+      console.error('HR_EMAIL is not configured in environment variables');
+      return;
+    }
+    const recipients = [hrEmail];
 
     await axios.post(`${process.env.API_URL}/mailer`, {
       to: recipients.join(','), // Multiple recipients separated by comma

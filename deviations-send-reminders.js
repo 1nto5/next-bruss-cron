@@ -22,7 +22,7 @@ function createEmailContent(message, deviationUrl) {
     </div>`;
 }
 
-async function sendPendingDeviationApprovalNotifications() {
+async function sendDeviationApprovalReminders() {
   const deviationsColl = await dbc('deviations');
   const usersColl = await dbc('users');
 
@@ -38,7 +38,7 @@ async function sendPendingDeviationApprovalNotifications() {
 
   if (pendingDeviations.length === 0) {
     console.log(
-      `sendPendingDeviationApprovalNotifications -> success at ${now.toLocaleString()} | Processed: 0, Reminders: 0`
+      `sendDeviationApprovalReminders -> success at ${now.toLocaleString()} | Processed: 0, Reminders: 0`
     );
     return;
   }
@@ -255,10 +255,10 @@ async function sendPendingDeviationApprovalNotifications() {
   }
 
   console.log(
-    `sendPendingDeviationApprovalNotifications -> success at ${now.toLocaleString()} | Processed: ${
+    `sendDeviationApprovalReminders -> success at ${now.toLocaleString()} | Processed: ${
       pendingDeviations.length
     }, Reminders: ${remindersSent}`
   );
 }
 
-export { sendPendingDeviationApprovalNotifications };
+export { sendDeviationApprovalReminders, sendDeviationApprovalReminders as sendPendingDeviationApprovalNotifications };

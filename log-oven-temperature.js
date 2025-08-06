@@ -43,7 +43,7 @@ async function fetchSensorData(ip) {
 }
 
 // Append log entry to oven_temperature_logs collection
-async function logOvenTemperature(oven, processIds, sensorData) {
+async function saveTemperatureLog(oven, processIds, sensorData) {
   const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
   const ovenProcessesCol = await dbc('oven_processes');
   const timestamp = new Date();
@@ -94,7 +94,7 @@ function logError(...args) {
 }
 
 // Main function
-async function logOvenSensors() {
+async function logOvenTemperature() {
   try {
     const ovenMap = await getOvenConfigs();
     const activeProcesses = await getActiveOvenProcesses();
@@ -124,7 +124,7 @@ async function logOvenSensors() {
       try {
         const sensorData = await fetchSensorData(ip);
         const processIds = processes.map((proc) => proc._id);
-        await logOvenTemperature(oven, processIds, sensorData);
+        await saveTemperatureLog(oven, processIds, sensorData);
         logInfo(
           `Logged sensor data for oven ${oven} (${ip}) to oven_temperature_logs with processIds: [${processIds.join(
             ', '
@@ -146,13 +146,13 @@ async function logOvenSensors() {
   }
 }
 
-export { logOvenSensors };
+export { logOvenTemperature };
 
 // if (require.main === module) {
 //   logInfo('Starting Oven Sensor Logging Script...');
 //   setInterval(
 //     () => {
-//       logOvenSensors();
+//       logOvenTemperature();
 //     },
 //     60 * 1000 // Run every 1 minute
 //   ); // Run every 1 minutes
