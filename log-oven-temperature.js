@@ -29,6 +29,16 @@ async function getActiveOvenProcesses() {
   return ovenProcessesCol.find({ status: { $in: ['running', 'prepared'] } }).toArray();
 }
 
+// Helper to get the last successful temperature reading time for an oven
+async function getLastSuccessfulReadTime(oven) {
+  const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
+  const lastLog = await ovenTemperatureLogsCol.findOne(
+    { oven },
+    { sort: { timestamp: -1 } }
+  );
+  return lastLog ? lastLog.timestamp : null;
+}
+
 // Fetch sensor data from Arduino at given IP
 async function fetchSensorData(ip) {
   const url = `http://${ip}/`;
@@ -142,31 +152,39 @@ async function logOvenTemperature() {
       } catch (err) {
         // Only log error if:
         // 1. Not all processes are in 'prepared' status AND
-        // 2. At least one process has been running for less than 1 hour
+        // 2. At least one process has been running for less than 1 hour AND
+        // 3. At least 2 hours have passed since the last successful reading
         if (!hasOnlyPreparedProcesses && hasRecentRunningProcess) {
-          const errorContext = {
-            oven,
-            ip,
-            processIds: processes.map(p => p._id),
-            processStatuses: processes.map(p => ({ 
-              id: p._id, 
-              status: p.status, 
-              hydraBatch: p.hydraBatch,
-              startTime: p.startTime 
-            })),
-            errorType: err.name,
-            errorCode: err.code
-          };
-          logError(
-            `Failed to fetch/log data for oven ${oven} (${ip}):`,
-            err.message,
-            '\nContext:', JSON.stringify(errorContext, null, 2)
-          );
-          // Add context to error for better notification
-          err.context = errorContext;
-          throw err;
+          const lastReadTime = await getLastSuccessfulReadTime(oven);
+          const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+          const shouldNotify = !lastReadTime || lastReadTime < twoHoursAgo;
+          
+          if (shouldNotify) {
+            const errorContext = {
+              oven,
+              ip,
+              processIds: processes.map(p => p._id),
+              processStatuses: processes.map(p => ({ 
+                id: p._id, 
+                status: p.status, 
+                hydraBatch: p.hydraBatch,
+                startTime: p.startTime 
+              })),
+              lastSuccessfulRead: lastReadTime,
+              errorType: err.name,
+              errorCode: err.code
+            };
+            logError(
+              `Failed to fetch/log data for oven ${oven} (${ip}):`,
+              err.message,
+              '\nContext:', JSON.stringify(errorContext, null, 2)
+            );
+            // Add context to error for better notification
+            err.context = errorContext;
+            throw err;
+          }
         }
-        // Silently continue if all running processes are older than 1 hour
+        // Silently continue if all running processes are older than 1 hour or last read was within 2 hours
       }
     }
   } catch (err) {
