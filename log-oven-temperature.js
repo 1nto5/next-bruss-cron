@@ -40,6 +40,16 @@ async function getLastSuccessfulReadTime(oven) {
   return lastLog ? lastLog.timestamp : null;
 }
 
+// Helper to get the last time an outlier notification was sent for an oven
+async function getLastOutlierNotificationTime(oven) {
+  const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
+  const lastOutlierLog = await ovenTemperatureLogsCol.findOne(
+    { oven, hasOutliers: true, outlierNotificationSent: true },
+    { sort: { timestamp: -1 } }
+  );
+  return lastOutlierLog ? lastOutlierLog.timestamp : null;
+}
+
 // Fetch sensor data from Arduino at given IP
 async function fetchSensorData(ip) {
   const url = `http://${ip}/`;
@@ -124,10 +134,9 @@ function analyzeTemperatureData(sensorData) {
 }
 
 // Append log entry to oven_temperature_logs collection
-async function saveTemperatureLog(oven, processIds, sensorData) {
+async function saveTemperatureLog(oven, processIds, sensorData, timestamp = new Date()) {
   const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
   const ovenProcessesCol = await dbc('oven_processes');
-  const timestamp = new Date();
 
   // Analyze temperature data for outliers
   const analysis = analyzeTemperatureData(sensorData);
@@ -163,7 +172,8 @@ async function saveTemperatureLog(oven, processIds, sensorData) {
     outlierSensors: analysis.outlierSensors,
     medianTemp: analysis.medianTemp,
     avgTemp: analysis.avgTemp, // This is now the filtered average (excluding outliers)
-    hasOutliers: analysis.hasOutliers
+    hasOutliers: analysis.hasOutliers,
+    outlierNotificationSent: false
   });
 
   // Return analysis for potential notification
@@ -305,7 +315,8 @@ async function logOvenTemperature() {
       try {
         const sensorData = await fetchSensorData(ip);
         const processIds = processes.map((proc) => proc._id);
-        const analysis = await saveTemperatureLog(oven, processIds, sensorData);
+        const currentTimestamp = new Date();
+        const analysis = await saveTemperatureLog(oven, processIds, sensorData, currentTimestamp);
 
         logInfo(
           `Logged sensor data for oven ${oven} (${ip}) to oven_temperature_logs with processIds: [${processIds.join(
@@ -313,10 +324,26 @@ async function logOvenTemperature() {
           )}]`
         );
 
-        // Send notification if outliers detected
+        // Send notification if outliers detected (with 8-hour throttling)
         if (analysis.hasOutliers) {
-          await notifyTemperatureOutliers(oven, processes, sensorData, analysis);
-          logInfo(`Outliers detected in oven ${oven}: ${analysis.outlierSensors.join(', ')}`);
+          const lastOutlierNotificationTime = await getLastOutlierNotificationTime(oven);
+          const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
+          const shouldNotify = !lastOutlierNotificationTime || lastOutlierNotificationTime < eightHoursAgo;
+
+          if (shouldNotify) {
+            await notifyTemperatureOutliers(oven, processes, sensorData, analysis);
+
+            // Mark this log as having sent a notification
+            const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
+            await ovenTemperatureLogsCol.updateOne(
+              { oven, timestamp: currentTimestamp },
+              { $set: { outlierNotificationSent: true } }
+            );
+
+            logInfo(`Outliers detected and notification sent for oven ${oven}: ${analysis.outlierSensors.join(', ')}`);
+          } else {
+            logInfo(`Outliers detected for oven ${oven} but notification suppressed (last sent: ${lastOutlierNotificationTime.toLocaleString('pl-PL', { timeZone: 'Europe/Warsaw' })})`);
+          }
         }
       } catch (err) {
         // Only log error if:
