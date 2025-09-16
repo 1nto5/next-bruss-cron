@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import { dbc } from './lib/mongo.js';
+import axios from 'axios';
 
 dotenv.config();
 
@@ -52,11 +53,84 @@ async function fetchSensorData(ip) {
   return await res.json();
 }
 
+// Helper function to detect outliers and calculate statistics
+function analyzeTemperatureData(sensorData) {
+  // Get the four main sensors: z0, z1, z2, z3
+  const sensorKeys = ['z0', 'z1', 'z2', 'z3'];
+  const sensorValues = [];
+  const validSensors = [];
+
+  // Extract valid sensor readings
+  for (const key of sensorKeys) {
+    if (typeof sensorData[key] === 'number' && !isNaN(sensorData[key])) {
+      sensorValues.push(sensorData[key]);
+      validSensors.push(key);
+    }
+  }
+
+  if (sensorValues.length < 2) {
+    // Need at least 2 sensors for outlier detection
+    return {
+      validValues: sensorValues,
+      validSensors,
+      outlierSensors: [],
+      medianTemp: sensorValues.length > 0 ? sensorValues[0] : null,
+      filteredAvgTemp: sensorValues.length > 0 ? sensorValues[0] : null,
+      hasOutliers: false
+    };
+  }
+
+  // Calculate median
+  const sortedValues = [...sensorValues].sort((a, b) => a - b);
+  const median = sensorValues.length % 2 === 0
+    ? (sortedValues[Math.floor(sensorValues.length / 2) - 1] + sortedValues[Math.floor(sensorValues.length / 2)]) / 2
+    : sortedValues[Math.floor(sensorValues.length / 2)];
+
+  // Identify outliers (25% deviation from median)
+  const outlierThreshold = 0.25;
+  const outlierSensors = [];
+  const nonOutlierValues = [];
+  const nonOutlierSensors = [];
+
+  for (let i = 0; i < sensorValues.length; i++) {
+    const value = sensorValues[i];
+    const sensor = validSensors[i];
+    const deviation = Math.abs(value - median) / median;
+
+    if (deviation > outlierThreshold) {
+      outlierSensors.push(sensor);
+    } else {
+      nonOutlierValues.push(value);
+      nonOutlierSensors.push(sensor);
+    }
+  }
+
+  // Calculate filtered average (excluding outliers) - this becomes our main avgTemp
+  const avgTemp = nonOutlierValues.length > 0
+    ? Math.round((nonOutlierValues.reduce((acc, val) => acc + val, 0) / nonOutlierValues.length) * 10) / 10
+    : Math.round(median * 10) / 10;
+
+  const roundedMedian = Math.round(median * 10) / 10;
+
+  return {
+    validValues: sensorValues,
+    validSensors,
+    outlierSensors,
+    nonOutlierSensors,
+    medianTemp: roundedMedian,
+    avgTemp,
+    hasOutliers: outlierSensors.length > 0
+  };
+}
+
 // Append log entry to oven_temperature_logs collection
 async function saveTemperatureLog(oven, processIds, sensorData) {
   const ovenTemperatureLogsCol = await dbc('oven_temperature_logs');
   const ovenProcessesCol = await dbc('oven_processes');
   const timestamp = new Date();
+
+  // Analyze temperature data for outliers
+  const analysis = analyzeTemperatureData(sensorData);
 
   // Check each process to see if this is its first temperature log
   for (const processId of processIds) {
@@ -80,12 +154,100 @@ async function saveTemperatureLog(oven, processIds, sensorData) {
     // If this is not the first temperature reading, we assume the process is already running
   }
 
+  // Save temperature log with outlier analysis
   await ovenTemperatureLogsCol.insertOne({
     oven,
     processIds,
     timestamp,
     sensorData,
+    outlierSensors: analysis.outlierSensors,
+    medianTemp: analysis.medianTemp,
+    avgTemp: analysis.avgTemp, // This is now the filtered average (excluding outliers)
+    hasOutliers: analysis.hasOutliers
   });
+
+  // Return analysis for potential notification
+  return analysis;
+}
+
+// Send notification when temperature outliers are detected
+async function notifyTemperatureOutliers(oven, processInfo, sensorData, analysis) {
+  const adminEmail = process.env.ADMIN_EMAIL;
+
+  if (!adminEmail) {
+    logWarn('ADMIN_EMAIL is not configured - cannot send outlier notifications');
+    return;
+  }
+
+  const timestamp = new Date().toLocaleString('en-US', {
+    timeZone: 'Europe/Warsaw',
+  });
+
+  const subject = `[CRON] Sensor outliers detected - Oven ${oven.toUpperCase()}`;
+
+  // Create sensor readings table
+  const sensorLabels = { z0: 'Top Left', z1: 'Top Right', z2: 'Bottom Left', z3: 'Bottom Right' };
+  const sensorRows = Object.entries(sensorData)
+    .filter(([key, value]) => ['z0', 'z1', 'z2', 'z3'].includes(key) && typeof value === 'number')
+    .map(([key, value]) => {
+      const isOutlier = analysis.outlierSensors.includes(key);
+      const style = isOutlier ? 'background-color: #ffebee; color: #d32f2f; font-weight: bold;' : '';
+      return `<tr style="${style}"><td>${sensorLabels[key] || key}</td><td>${value}°C</td><td>${isOutlier ? '⚠️ OUTLIER' : '✓ OK'}</td></tr>`;
+    })
+    .join('');
+
+  const processRows = processInfo.map(proc =>
+    `<tr><td>${proc.hydraBatch || 'N/A'}</td><td>${proc.article || 'N/A'}</td><td>${proc.status}</td></tr>`
+  ).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 800px;">
+      <h2 style="color: #ff9800;">⚠️ Temperature Sensor Outliers Detected</h2>
+
+      <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+        <p><strong>Oven:</strong> ${oven.toUpperCase()}</p>
+        <p><strong>Time:</strong> ${timestamp}</p>
+        <p><strong>Median Temperature:</strong> ${analysis.medianTemp}°C</p>
+        <p><strong>Filtered Average (excluding outliers):</strong> ${analysis.avgTemp}°C</p>
+      </div>
+
+      <h3>📊 Sensor Readings</h3>
+      <table style="border-collapse: collapse; width: 100%; margin: 10px 0;">
+        <tr style="background-color: #e0e0e0;">
+          <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Sensor</th>
+          <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Temperature</th>
+          <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Status</th>
+        </tr>
+        ${sensorRows}
+      </table>
+
+      <h3>🏭 Active Processes</h3>
+      <table style="border-collapse: collapse; width: 100%; margin: 10px 0;">
+        <tr style="background-color: #e0e0e0;">
+          <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Hydra Batch</th>
+          <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Article</th>
+          <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">Status</th>
+        </tr>
+        ${processRows}
+      </table>
+
+      <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ff9800;">
+        <p><strong>Outliers detected in sensors:</strong> ${analysis.outlierSensors.map(s => sensorLabels[s] || s).join(', ')}</p>
+        <p><em>Outlier = deviation > 25% from median of all sensors</em></p>
+      </div>
+    </div>
+  `;
+
+  try {
+    await axios.post(`${process.env.API_URL}/mailer`, {
+      to: adminEmail,
+      subject,
+      html,
+    });
+    logInfo(`Outlier notification sent for oven ${oven}`);
+  } catch (sendError) {
+    logError(`Failed to send outlier notification for ${oven}:`, sendError.message);
+  }
 }
 
 // Logging helpers to control output by environment
@@ -143,12 +305,19 @@ async function logOvenTemperature() {
       try {
         const sensorData = await fetchSensorData(ip);
         const processIds = processes.map((proc) => proc._id);
-        await saveTemperatureLog(oven, processIds, sensorData);
+        const analysis = await saveTemperatureLog(oven, processIds, sensorData);
+
         logInfo(
           `Logged sensor data for oven ${oven} (${ip}) to oven_temperature_logs with processIds: [${processIds.join(
             ', '
           )}]`
         );
+
+        // Send notification if outliers detected
+        if (analysis.hasOutliers) {
+          await notifyTemperatureOutliers(oven, processes, sensorData, analysis);
+          logInfo(`Outliers detected in oven ${oven}: ${analysis.outlierSensors.join(', ')}`);
+        }
       } catch (err) {
         // Only log error if:
         // 1. Not all processes are in 'prepared' status AND
