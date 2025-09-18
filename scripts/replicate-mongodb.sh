@@ -21,6 +21,7 @@ VERBOSE=false
 KEEP_DUMP=false
 COLLECTIONS=""
 EXCLUDE_COLLECTIONS=""
+SKIP_ARCHIVE=false
 
 usage() {
     cat << EOF
@@ -39,6 +40,7 @@ OPTIONS:
     --keep-dump            Keep dump files after restoration
     --collections LIST     Only replicate specific collections (comma-separated)
     --exclude LIST         Exclude specific collections (comma-separated)
+    --skip-archive         Skip collections with 'archive' in their names
     --help                 Show this help message
 
 EXAMPLES:
@@ -46,6 +48,7 @@ EXAMPLES:
     $0 --yes                             # Skip confirmation
     $0 --collections users,deviations    # Only specific collections
     $0 --exclude scans_archive,logs      # Exclude large collections
+    $0 --skip-archive                    # Skip all collections with 'archive' in name
 
 EOF
 }
@@ -161,7 +164,7 @@ validate_connections() {
     log_success "Source database verified"
 }
 
-confirm_operation() {
+show_interactive_menu() {
     if [[ "$AUTO_CONFIRM" == "true" ]]; then
         return 0
     fi
@@ -171,6 +174,136 @@ confirm_operation() {
     echo "=========================="
     echo "Source: $(echo "$SOURCE_URI" | sed 's/:\/\/[^@]*@/:\/\/***@/')/$SOURCE_DB"
     echo "Target: $(echo "$TARGET_URI" | sed 's/:\/\/[^@]*@/:\/\/***@/')$TARGET_DB"
+    echo ""
+
+    while true; do
+        echo "Current Options:"
+        echo "---------------"
+
+        if [[ -n "$COLLECTIONS" ]]; then
+            echo "📋 Specific collections: $COLLECTIONS"
+        elif [[ -n "$EXCLUDE_COLLECTIONS" || "$SKIP_ARCHIVE" == "true" ]]; then
+            echo "📋 Mode: Full replication with exclusions"
+        else
+            echo "📋 Mode: Full replication (all collections)"
+        fi
+
+        if [[ -n "$EXCLUDE_COLLECTIONS" ]]; then
+            echo "🚫 Excluded collections: $EXCLUDE_COLLECTIONS"
+        fi
+
+        if [[ "$SKIP_ARCHIVE" == "true" ]]; then
+            echo "📁 Skip archive collections: YES"
+        else
+            echo "📁 Skip archive collections: NO"
+        fi
+
+        if [[ "$VERBOSE" == "true" ]]; then
+            echo "🗣️  Verbose output: YES"
+        else
+            echo "🗣️  Verbose output: NO"
+        fi
+
+        if [[ "$KEEP_DUMP" == "true" ]]; then
+            echo "💾 Keep dump files: YES"
+        else
+            echo "💾 Keep dump files: NO"
+        fi
+
+        echo ""
+        echo "Options:"
+        echo "1) Skip archive collections (toggle)"
+        echo "2) Set specific collections to replicate"
+        echo "3) Set collections to exclude"
+        echo "4) Toggle verbose output"
+        echo "5) Toggle keep dump files"
+        echo "6) Reset to full replication"
+        echo "c) Continue with current settings"
+        echo "q) Quit"
+        echo ""
+
+        read -rp "Choose option [1-6, c, q]: " choice
+
+        case $choice in
+            1)
+                if [[ "$SKIP_ARCHIVE" == "true" ]]; then
+                    SKIP_ARCHIVE=false
+                    log_info "Archive collections will now be included"
+                else
+                    SKIP_ARCHIVE=true
+                    log_info "Archive collections will now be skipped"
+                fi
+                echo ""
+                ;;
+            2)
+                echo ""
+                read -rp "Enter collections to replicate (comma-separated) or press Enter to clear: " input
+                COLLECTIONS="$input"
+                if [[ -n "$COLLECTIONS" ]]; then
+                    EXCLUDE_COLLECTIONS=""
+                    log_info "Set specific collections: $COLLECTIONS"
+                else
+                    log_info "Cleared specific collections filter"
+                fi
+                echo ""
+                ;;
+            3)
+                echo ""
+                read -rp "Enter collections to exclude (comma-separated) or press Enter to clear: " input
+                EXCLUDE_COLLECTIONS="$input"
+                if [[ -n "$EXCLUDE_COLLECTIONS" ]]; then
+                    COLLECTIONS=""
+                    log_info "Set excluded collections: $EXCLUDE_COLLECTIONS"
+                else
+                    log_info "Cleared excluded collections filter"
+                fi
+                echo ""
+                ;;
+            4)
+                if [[ "$VERBOSE" == "true" ]]; then
+                    VERBOSE=false
+                    log_info "Verbose output disabled"
+                else
+                    VERBOSE=true
+                    log_info "Verbose output enabled"
+                fi
+                echo ""
+                ;;
+            5)
+                if [[ "$KEEP_DUMP" == "true" ]]; then
+                    KEEP_DUMP=false
+                    log_info "Dump files will be deleted after restore"
+                else
+                    KEEP_DUMP=true
+                    log_info "Dump files will be kept after restore"
+                fi
+                echo ""
+                ;;
+            6)
+                COLLECTIONS=""
+                EXCLUDE_COLLECTIONS=""
+                SKIP_ARCHIVE=false
+                log_info "Reset to full replication mode"
+                echo ""
+                ;;
+            [Cc])
+                break
+                ;;
+            [Qq])
+                echo "Operation cancelled."
+                exit 0
+                ;;
+            *)
+                echo "Invalid option. Please choose 1-6, c, or q."
+                echo ""
+                ;;
+        esac
+    done
+}
+
+confirm_operation() {
+    show_interactive_menu
+
     echo ""
     echo "⚠️  WARNING: This will DROP the local database '$TARGET_DB' completely!"
     echo "All existing data in the target database will be LOST."
@@ -183,6 +316,11 @@ confirm_operation() {
 
     if [[ -n "$EXCLUDE_COLLECTIONS" ]]; then
         echo "🚫 These collections will be excluded: $EXCLUDE_COLLECTIONS"
+        echo ""
+    fi
+
+    if [[ "$SKIP_ARCHIVE" == "true" ]]; then
+        echo "📁 Collections with 'archive' in their names will be skipped"
         echo ""
     fi
 
@@ -215,6 +353,26 @@ dump_production() {
         for collection in "${EXCLUDE_ARRAY[@]}"; do
             dump_args+=(--excludeCollection="$collection")
         done
+    fi
+
+    if [[ "$SKIP_ARCHIVE" == "true" ]]; then
+        log_info "Getting list of collections to identify archive collections..."
+        local archive_collections
+        archive_collections=$(mongosh --quiet "$SOURCE_URI" --eval "
+            db.getSiblingDB('$SOURCE_DB').getCollectionNames().filter(name => name.includes('archive')).forEach(name => print(name))
+        " 2>/dev/null || true)
+
+        if [[ -n "$archive_collections" ]]; then
+            log_info "Found archive collections to exclude: $archive_collections"
+            while IFS= read -r collection; do
+                if [[ -n "$collection" ]]; then
+                    dump_args+=(--excludeCollection="$collection")
+                    log_info "Excluding archive collection: $collection"
+                fi
+            done <<< "$archive_collections"
+        else
+            log_info "No archive collections found to exclude"
+        fi
     fi
 
     log_info "Starting mongodump with args: ${dump_args[*]}"
@@ -358,6 +516,10 @@ parse_args() {
             --exclude)
                 EXCLUDE_COLLECTIONS="$2"
                 shift 2
+                ;;
+            --skip-archive)
+                SKIP_ARCHIVE=true
+                shift
                 ;;
             --help)
                 usage
