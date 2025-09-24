@@ -96,8 +96,8 @@ function analyzeTemperatureData(sensorData) {
     ? (sortedValues[Math.floor(sensorValues.length / 2) - 1] + sortedValues[Math.floor(sensorValues.length / 2)]) / 2
     : sortedValues[Math.floor(sensorValues.length / 2)];
 
-  // Identify outliers (25% deviation from median)
-  const outlierThreshold = 0.25;
+  // Identify outliers (17% deviation from median)
+  const outlierThreshold = 0.17;
   const outlierSensors = [];
   const nonOutlierValues = [];
   const nonOutlierSensors = [];
@@ -243,7 +243,7 @@ async function notifyTemperatureOutliers(oven, processInfo, sensorData, analysis
 
       <div style="background-color: #fff3e0; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #ff9800;">
         <p><strong>Outliers detected in sensors:</strong> ${analysis.outlierSensors.map(s => sensorLabels[s] || s).join(', ')}</p>
-        <p><em>Outlier = deviation > 25% from median of all sensors</em></p>
+        <p><em>Outlier = deviation > 17% from median of all sensors</em></p>
       </div>
     </div>
   `;
