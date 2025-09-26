@@ -1,6 +1,16 @@
 import dotenv from 'dotenv';
 import { dbc } from './lib/mongo.js';
 import axios from 'axios';
+import {
+  SENSOR_OUTLIER_THRESHOLD,
+  MIN_SENSORS_FOR_OUTLIER_DETECTION,
+  TEMPERATURE_PRECISION_DECIMALS,
+  NOTIFICATION_THROTTLE_HOURS,
+  CONNECTION_TIMEOUT_MS,
+  SILENCE_DURATION_HOURS,
+  SENSOR_KEYS,
+  SENSOR_LABELS
+} from './lib/temperature-constants.js';
 
 dotenv.config();
 
@@ -55,7 +65,7 @@ async function fetchSensorData(ip) {
   const url = `http://${ip}/`;
   const res = await fetch(url, {
     headers: { 'X-API-KEY': API_KEY },
-    timeout: 5000,
+    timeout: CONNECTION_TIMEOUT_MS,
   });
   if (!res.ok) {
     throw new Error(`Request failed with status code ${res.status}`);
@@ -65,8 +75,8 @@ async function fetchSensorData(ip) {
 
 // Helper function to detect outliers and calculate statistics
 function analyzeTemperatureData(sensorData) {
-  // Get the four main sensors: z0, z1, z2, z3
-  const sensorKeys = ['z0', 'z1', 'z2', 'z3'];
+  // Get the four main sensors from configuration
+  const sensorKeys = SENSOR_KEYS;
   const sensorValues = [];
   const validSensors = [];
 
@@ -78,8 +88,8 @@ function analyzeTemperatureData(sensorData) {
     }
   }
 
-  if (sensorValues.length < 2) {
-    // Need at least 2 sensors for outlier detection
+  if (sensorValues.length < MIN_SENSORS_FOR_OUTLIER_DETECTION) {
+    // Need minimum sensors for outlier detection
     return {
       validValues: sensorValues,
       validSensors,
@@ -96,8 +106,8 @@ function analyzeTemperatureData(sensorData) {
     ? (sortedValues[Math.floor(sensorValues.length / 2) - 1] + sortedValues[Math.floor(sensorValues.length / 2)]) / 2
     : sortedValues[Math.floor(sensorValues.length / 2)];
 
-  // Identify outliers (17% deviation from median)
-  const outlierThreshold = 0.17;
+  // Identify outliers using configured threshold
+  const outlierThreshold = SENSOR_OUTLIER_THRESHOLD;
   const outlierSensors = [];
   const nonOutlierValues = [];
   const nonOutlierSensors = [];
@@ -116,11 +126,12 @@ function analyzeTemperatureData(sensorData) {
   }
 
   // Calculate filtered average (excluding outliers) - this becomes our main avgTemp
+  const precisionMultiplier = Math.pow(10, TEMPERATURE_PRECISION_DECIMALS);
   const avgTemp = nonOutlierValues.length > 0
-    ? Math.round((nonOutlierValues.reduce((acc, val) => acc + val, 0) / nonOutlierValues.length) * 10) / 10
-    : Math.round(median * 10) / 10;
+    ? Math.round((nonOutlierValues.reduce((acc, val) => acc + val, 0) / nonOutlierValues.length) * precisionMultiplier) / precisionMultiplier
+    : Math.round(median * precisionMultiplier) / precisionMultiplier;
 
-  const roundedMedian = Math.round(median * 10) / 10;
+  const roundedMedian = Math.round(median * precisionMultiplier) / precisionMultiplier;
 
   return {
     validValues: sensorValues,
@@ -196,9 +207,9 @@ async function notifyTemperatureOutliers(oven, processInfo, sensorData, analysis
   const subject = `[CRON] Sensor outliers detected - Oven ${oven.toUpperCase()}`;
 
   // Create sensor readings table
-  const sensorLabels = { z0: 'Top Left', z1: 'Top Right', z2: 'Bottom Left', z3: 'Bottom Right' };
+  const sensorLabels = SENSOR_LABELS;
   const sensorRows = Object.entries(sensorData)
-    .filter(([key, value]) => ['z0', 'z1', 'z2', 'z3'].includes(key) && typeof value === 'number')
+    .filter(([key, value]) => SENSOR_KEYS.includes(key) && typeof value === 'number')
     .map(([key, value]) => {
       const isOutlier = analysis.outlierSensors.includes(key);
       const style = isOutlier ? 'background-color: #ffebee; color: #d32f2f; font-weight: bold;' : '';
@@ -324,11 +335,11 @@ async function logOvenTemperature() {
           )}]`
         );
 
-        // Send notification if outliers detected (with 8-hour throttling)
+        // Send notification if outliers detected (with throttling)
         if (analysis.hasOutliers) {
           const lastOutlierNotificationTime = await getLastOutlierNotificationTime(oven);
-          const eightHoursAgo = new Date(Date.now() - 8 * 60 * 60 * 1000);
-          const shouldNotify = !lastOutlierNotificationTime || lastOutlierNotificationTime < eightHoursAgo;
+          const throttleThreshold = new Date(Date.now() - NOTIFICATION_THROTTLE_HOURS * 60 * 60 * 1000);
+          const shouldNotify = !lastOutlierNotificationTime || lastOutlierNotificationTime < throttleThreshold;
 
           if (shouldNotify) {
             await notifyTemperatureOutliers(oven, processes, sensorData, analysis);
@@ -352,8 +363,8 @@ async function logOvenTemperature() {
         // 3. At least 2 hours have passed since the last successful reading
         if (!hasOnlyPreparedProcesses && hasRecentRunningProcess) {
           const lastReadTime = await getLastSuccessfulReadTime(oven);
-          const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-          const shouldNotify = !lastReadTime || lastReadTime < twoHoursAgo;
+          const silenceThreshold = new Date(Date.now() - SILENCE_DURATION_HOURS * 60 * 60 * 1000);
+          const shouldNotify = !lastReadTime || lastReadTime < silenceThreshold;
           
           if (shouldNotify) {
             const errorContext = {
