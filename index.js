@@ -86,8 +86,3 @@ cron.schedule('0 * * * *', async () => {
 cron.schedule('0 8 * * *', async () => {
   await statusCollector.sendStatusSummary(24, true); // 24 hours, force even if empty
 });
-
-// Schedule 4-hour status summary every 4 hours during work hours (8, 12, 16)
-cron.schedule('0 8,12,16 * * 1-5', async () => {
-  await statusCollector.sendStatusSummary(4, false); // 4 hours, skip if empty
-});
