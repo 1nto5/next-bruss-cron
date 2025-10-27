@@ -11,6 +11,7 @@ import {
 } from './production-overtime-send-reminders.js';
 import { syncLdapUsers } from './sync-ldap-users.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
+import { backupLv1 } from './smb-backup-lv1.js';
 import { backupLv2 } from './smb-backup-lv2.js';
 import { executeJobWithStatusTracking } from './lib/error-notifier.js';
 import { setupHealthCheck } from './lib/health-check.js';
@@ -64,8 +65,13 @@ cron.schedule('0 16 * * 1-5', async () => {
 
 // Backup tasks
 // ------------
-// Schedule LV2 Zasoby backup every hour (DB_Backup, ST61, ST151)
+// Schedule LV1 MVC_Pictures backup every hour
 cron.schedule('0 * * * *', async () => {
+  await executeJobWithStatusTracking('backupLv1', backupLv1);
+});
+
+// Schedule LV2 Zasoby backup every 5 minutes (TESTING - change back to '0 * * * *' for production)
+cron.schedule('*/5 * * * *', async () => {
   await executeJobWithStatusTracking('backupLv2', backupLv2);
 });
 
