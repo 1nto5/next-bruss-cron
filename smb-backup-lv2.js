@@ -1,195 +1,14 @@
 import dotenv from 'dotenv';
-import SMB2 from 'v9u-smb2';
 import { statusCollector } from './lib/status-collector.js';
+import { acquireLock, releaseLock } from './lib/synology-lock.js';
+import {
+  connectToSourceSmb,
+  connectToSynologyWithFailover,
+  copyDirectoryRecursive,
+  formatBytes,
+} from './lib/smb-helpers.js';
 
 dotenv.config();
-
-/**
- * Connect to source SMB share (standard SMB)
- * @param {string} ip - IP address
- * @param {string} share - Share name
- * @param {string} username - SMB username
- * @param {string} password - SMB password
- * @returns {Promise<SMB2>}
- */
-async function connectToSourceSmb(ip, share, username, password) {
-  const client = new SMB2({
-    share: `\\\\${ip}\\${share}`,
-    domain: 'WORKGROUP',
-    username: username,
-    password: password,
-    autoCloseTimeout: 10000,
-  });
-
-  // Test connection by reading directory
-  await new Promise((resolve, reject) => {
-    client.readdir('', (err, files) => {
-      if (err) reject(err);
-      else resolve(files);
-    });
-  });
-
-  console.log(`Successfully connected to ${ip}\\${share}`);
-  return client;
-}
-
-/**
- * Connect to Synology SMB share with retry logic for multiple IPs
- * @param {string[]} ips - Array of IP addresses to try
- * @param {string} share - Share name
- * @param {string} username - SMB username
- * @param {string} password - SMB password
- * @param {string} domain - Domain/Workgroup name (optional, defaults to WORKGROUP)
- * @returns {Promise<{client: SMB2, connectedIp: string}>}
- */
-async function connectToSynologyWithFailover(ips, share, username, password, domain) {
-  let lastError;
-
-  for (const ip of ips) {
-    try {
-      const client = new SMB2({
-        share: `\\\\${ip}\\${share}`,
-        domain: domain || 'WORKGROUP',
-        username: username,
-        password: password,
-        autoCloseTimeout: 10000,
-      });
-
-      // Test connection by reading directory
-      await new Promise((resolve, reject) => {
-        client.readdir('', (err, files) => {
-          if (err) reject(err);
-          else resolve(files);
-        });
-      });
-
-      console.log(`Successfully connected to ${ip}\\${share}`);
-      return { client, connectedIp: ip };
-    } catch (error) {
-      console.log(`Failed to connect to ${ip}\\${share}: ${error.message}`);
-      lastError = error;
-      continue;
-    }
-  }
-
-  throw new Error(`Failed to connect to any SMB server. Last error: ${lastError?.message}`);
-}
-
-/**
- * Get list of files from SMB directory recursively
- * @param {SMB2} client - SMB2 client
- * @param {string} path - Path to read
- * @returns {Promise<string[]>} Array of file paths
- */
-async function listFiles(client, path = '') {
-  return new Promise((resolve, reject) => {
-    client.readdir(path, (err, files) => {
-      if (err) {
-        reject(err);
-        return;
-      }
-
-      const filePaths = files
-        .filter(file => file !== '.' && file !== '..')
-        .map(file => path ? `${path}\\${file}` : file);
-
-      resolve(filePaths);
-    });
-  });
-}
-
-/**
- * Check if file exists on SMB share
- * @param {SMB2} client - SMB2 client
- * @param {string} filePath - File path to check
- * @returns {Promise<boolean>}
- */
-async function fileExists(client, filePath) {
-  return new Promise((resolve) => {
-    client.exists(filePath, (err, exists) => {
-      if (err) {
-        resolve(false);
-      } else {
-        resolve(exists);
-      }
-    });
-  });
-}
-
-/**
- * Ensure directory exists on SMB share, create if it doesn't
- * @param {SMB2} client - SMB2 client
- * @param {string} dirPath - Directory path to ensure
- * @returns {Promise<void>}
- */
-async function ensureDirectory(client, dirPath) {
-  return new Promise((resolve, reject) => {
-    // Check if directory exists
-    client.exists(dirPath, (err, exists) => {
-      if (exists) {
-        resolve();
-        return;
-      }
-
-      // Create directory
-      client.mkdir(dirPath, (err) => {
-        if (err) {
-          // Ignore error if directory already exists (race condition)
-          if (err.message && err.message.includes('STATUS_OBJECT_NAME_COLLISION')) {
-            resolve();
-          } else {
-            reject(err);
-          }
-        } else {
-          resolve();
-        }
-      });
-    });
-  });
-}
-
-/**
- * Copy file from source to target SMB share
- * @param {SMB2} sourceClient - Source SMB2 client
- * @param {SMB2} targetClient - Target SMB2 client
- * @param {string} sourceFilePath - Source file path
- * @param {string} targetFilePath - Target file path
- * @returns {Promise<number>} File size in bytes
- */
-async function copyFile(sourceClient, targetClient, sourceFilePath, targetFilePath) {
-  return new Promise((resolve, reject) => {
-    // Read file from source
-    sourceClient.readFile(sourceFilePath, (readErr, content) => {
-      if (readErr) {
-        reject(new Error(`Failed to read ${sourceFilePath}: ${readErr.message}`));
-        return;
-      }
-
-      // Write file to target
-      targetClient.writeFile(targetFilePath, content, (writeErr) => {
-        if (writeErr) {
-          reject(new Error(`Failed to write ${targetFilePath}: ${writeErr.message}`));
-          return;
-        }
-
-        resolve(content.length);
-      });
-    });
-  });
-}
-
-/**
- * Format bytes to human readable format
- * @param {number} bytes
- * @returns {string}
- */
-function formatBytes(bytes) {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
-}
 
 /**
  * Backup LV2 Zasoby files (DB_Backup, ST61, ST151) from source to Synology
@@ -201,6 +20,7 @@ export async function backupLv2() {
   let totalSkippedFiles = 0;
   const directoryStats = {};
   let usedSynologyIp = null;
+  let lockedIp = null;
 
   try {
     console.log('Starting LV2 Zasoby backup...');
@@ -232,6 +52,28 @@ export async function backupLv2() {
       throw new Error('Missing target configuration in environment variables');
     }
 
+    // Build list of Synology IPs
+    const synologyIps = [synologyIpPrimary];
+    if (synologyIpSecondary) {
+      synologyIps.push(synologyIpSecondary);
+    }
+
+    // Select least busy Synology IP (non-blocking)
+    console.log(`Selecting Synology IP (available: ${synologyIps.join(', ')})...`);
+    lockedIp = await acquireLock('backupLv2', synologyIps);
+
+    // If backup already running, skip this execution
+    if (!lockedIp) {
+      console.log('Backup already in progress, exiting.');
+      return {
+        backupName: 'LV2_Zasoby',
+        skipped: true,
+        reason: 'Already running',
+      };
+    }
+
+    console.log(`Selected IP: ${lockedIp}`);
+
     // Connect to source SMB (standard SMB with WORKGROUP)
     console.log(`Connecting to source: ${sourceIp}\\${sourceShare}`);
     const sourceClient = await connectToSourceSmb(
@@ -241,12 +83,7 @@ export async function backupLv2() {
       sourcePass
     );
 
-    // Connect to target SMB (Synology) with failover
-    const synologyIps = [synologyIpPrimary];
-    if (synologyIpSecondary) {
-      synologyIps.push(synologyIpSecondary);
-    }
-
+    // Connect to target SMB (Synology) using selected IP with failover
     console.log(`Connecting to target Synology: ${synologyIps.join(', ')} (domain: ${synologyDomain || 'WORKGROUP'})`);
     const { client: targetClient, connectedIp } = await connectToSynologyWithFailover(
       synologyIps,
@@ -272,46 +109,18 @@ export async function backupLv2() {
       let dirBytes = 0;
 
       try {
-        // Ensure target directory exists
-        await ensureDirectory(targetClient, targetDir);
-        console.log(`Ensured directory exists: ${targetDir}`);
+        // Recursively copy directory structure
+        console.log(`Copying directory recursively: ${sourceDir} -> ${targetDir}`);
+        const stats = await copyDirectoryRecursive(sourceClient, targetClient, sourceDir, targetDir);
 
-        // Get list of files from source directory
-        const sourceFiles = await listFiles(sourceClient, sourceDir);
-        console.log(`Found ${sourceFiles.length} files in ${dir}`);
-
-        // Process each file
-        for (const file of sourceFiles) {
-          try {
-            // Build relative path for target
-            const relativeFile = file.replace(`${sourceDir}\\`, '').replace(sourceDir, '');
-            const targetFile = targetDir ? `${targetDir}\\${relativeFile}` : relativeFile;
-
-            // Check if file already exists in target
-            const exists = await fileExists(targetClient, targetFile);
-
-            if (exists) {
-              dirSkippedFiles++;
-              continue;
-            }
-
-            // Copy new file
-            console.log(`Copying: ${file} -> ${targetFile}`);
-            const fileSize = await copyFile(sourceClient, targetClient, file, targetFile);
-
-            dirCopiedFiles++;
-            dirBytes += fileSize;
-
-          } catch (fileError) {
-            console.error(`Error processing file ${file}:`, fileError.message);
-            // Continue with next file instead of failing entire backup
-          }
-        }
+        dirCopiedFiles = stats.copiedFiles;
+        dirSkippedFiles = stats.skippedFiles;
+        dirBytes = stats.totalBytes;
 
         directoryStats[dir] = {
           copiedFiles: dirCopiedFiles,
           skippedFiles: dirSkippedFiles,
-          totalFiles: sourceFiles.length,
+          totalFiles: dirCopiedFiles + dirSkippedFiles,
           bytes: dirBytes,
           formattedSize: formatBytes(dirBytes),
         };
@@ -363,5 +172,10 @@ export async function backupLv2() {
   } catch (error) {
     console.error('Error in backupLv2:', error);
     throw error;
+  } finally {
+    // Always release job registration
+    if (lockedIp) {
+      await releaseLock(lockedIp, 'backupLv2');
+    }
   }
 }

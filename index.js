@@ -17,6 +17,7 @@ import { executeJobWithStatusTracking } from './lib/error-notifier.js';
 import { setupHealthCheck } from './lib/health-check.js';
 import { errorCollector } from './lib/error-collector.js';
 import { statusCollector } from './lib/status-collector.js';
+import { cleanupStaleLocks } from './lib/synology-lock.js';
 
 dotenv.config();
 
@@ -65,14 +66,19 @@ cron.schedule('0 16 * * 1-5', async () => {
 
 // Backup tasks
 // ------------
-// Schedule LV1 MVC_Pictures backup every hour
+// Schedule LV1 MVC_Pictures backup every hour at minute 0
 cron.schedule('0 * * * *', async () => {
   await executeJobWithStatusTracking('backupLv1', backupLv1);
 });
 
-// Schedule LV2 Zasoby backup every 5 minutes (TESTING - change back to '0 * * * *' for production)
-cron.schedule('*/5 * * * *', async () => {
+// Schedule LV2 Zasoby backup every hour at minute 30 (staggered 30 minutes after LV1)
+cron.schedule('30 * * * *', async () => {
   await executeJobWithStatusTracking('backupLv2', backupLv2);
+});
+
+// Schedule cleanup of stale Synology locks every hour at minute 45
+cron.schedule('45 * * * *', async () => {
+  await cleanupStaleLocks();
 });
 
 // Maintenance tasks

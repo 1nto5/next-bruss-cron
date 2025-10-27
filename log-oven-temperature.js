@@ -11,6 +11,7 @@ import {
   SENSOR_KEYS,
   SENSOR_LABELS
 } from './lib/temperature-constants.js';
+import { parseEmailAddresses } from './lib/email-helper.js';
 
 dotenv.config();
 
@@ -260,12 +261,13 @@ async function notifyTemperatureOutliers(oven, processInfo, sensorData, analysis
   `;
 
   try {
+    const emailAddresses = parseEmailAddresses(adminEmail);
     await axios.post(`${process.env.API_URL}/mailer`, {
-      to: adminEmail,
+      to: emailAddresses.join(','),
       subject,
       html,
     });
-    logInfo(`Outlier notification sent for oven ${oven}`);
+    logInfo(`Outlier notification sent for oven ${oven} to ${emailAddresses.length} recipient(s)`);
   } catch (sendError) {
     logError(`Failed to send outlier notification for ${oven}:`, sendError.message);
   }
