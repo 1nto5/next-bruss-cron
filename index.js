@@ -11,6 +11,7 @@ import {
 } from './production-overtime-send-reminders.js';
 import { syncLdapUsers } from './sync-ldap-users.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
+import { backupLv2 } from './smb-backup-lv2.js';
 import { executeJobWithStatusTracking } from './lib/error-notifier.js';
 import { setupHealthCheck } from './lib/health-check.js';
 import { errorCollector } from './lib/error-collector.js';
@@ -59,6 +60,13 @@ cron.schedule('0 16 * * 1-5', async () => {
 // Schedule synchronization of LDAP users every workday at 16:00
 cron.schedule('0 16 * * 1-5', async () => {
   await executeJobWithStatusTracking('syncLdapUsers', syncLdapUsers);
+});
+
+// Backup tasks
+// ------------
+// Schedule LV2 Zasoby backup every hour (DB_Backup, ST61, ST151)
+cron.schedule('0 * * * *', async () => {
+  await executeJobWithStatusTracking('backupLv2', backupLv2);
 });
 
 // Maintenance tasks
