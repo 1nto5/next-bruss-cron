@@ -1,0 +1,135 @@
+import dotenv from 'dotenv';
+import { statusCollector } from './lib/status-collector.js';
+import { connectToSynologyWithFailover } from './lib/smb-helpers.js';
+
+dotenv.config();
+
+/**
+ * Monitor EOL308 backup executed by Synology bash script
+ * This function checks if the backup is running correctly by reading
+ * the status JSON file created by the bash backup script
+ */
+export async function monitorEOL308Backup() {
+  const startTime = Date.now();
+
+  try {
+    console.log('Starting EOL308 backup monitoring...');
+
+    // Get configuration from environment
+    const synologyIpPrimary = process.env.SYNOLOGY_BACKUP_IP_PRIMARY;
+    const synologyIpSecondary = process.env.SYNOLOGY_BACKUP_IP_SECONDARY;
+    const synologyIpTertiary = process.env.SYNOLOGY_BACKUP_IP_TERTIARY;
+    const synologyDomain = process.env.SYNOLOGY_BACKUP_DOMAIN;
+    const synologyUser = process.env.SYNOLOGY_BACKUP_USER;
+    const synologyPass = process.env.SYNOLOGY_BACKUP_PASS;
+
+    const monitorShare = process.env.SMB_EOL308_MONITOR_SHARE;
+    const monitorPath = process.env.SMB_EOL308_MONITOR_PATH;
+    const staleThresholdHours = parseInt(process.env.SMB_EOL308_STALE_THRESHOLD_HOURS || '24');
+
+    // Validate configuration
+    if (!synologyIpPrimary || !synologyUser || !synologyPass) {
+      throw new Error('Missing Synology configuration in environment variables');
+    }
+    if (!monitorShare || !monitorPath) {
+      throw new Error('Missing EOL308 monitoring configuration in environment variables');
+    }
+
+    // Build list of Synology IPs
+    const synologyIps = [synologyIpPrimary];
+    if (synologyIpSecondary) {
+      synologyIps.push(synologyIpSecondary);
+    }
+    if (synologyIpTertiary) {
+      synologyIps.push(synologyIpTertiary);
+    }
+
+    console.log(`Connecting to Synology (IPs: ${synologyIps.join(', ')})...`);
+
+    // Connect to Synology using failover mechanism
+    const { client: smbClient, connectedIp } = await connectToSynologyWithFailover(
+      synologyIps,
+      monitorShare,
+      synologyUser,
+      synologyPass,
+      synologyDomain
+    );
+
+    console.log(`Connected to Synology at ${connectedIp}`);
+
+    // Read the status JSON file
+    const statusFilePath = `${monitorPath}\\last_backup_status.json`;
+    console.log(`Reading backup status from: ${statusFilePath}`);
+
+    const statusJson = await new Promise((resolve, reject) => {
+      smbClient.readFile(statusFilePath, (err, content) => {
+        if (err) {
+          reject(new Error(`Failed to read status file: ${err.message}`));
+        } else {
+          try {
+            const jsonData = JSON.parse(content.toString('utf8'));
+            resolve(jsonData);
+          } catch (parseErr) {
+            reject(new Error(`Failed to parse status JSON: ${parseErr.message}`));
+          }
+        }
+      });
+    });
+
+    console.log(`Backup status read successfully. Last backup: ${statusJson.timestamp}`);
+
+    // Check if backup is stale
+    const lastBackupTime = new Date(statusJson.timestampIso || statusJson.timestamp);
+    const nowTime = new Date();
+    const hoursSinceBackup = (nowTime - lastBackupTime) / (1000 * 60 * 60);
+
+    if (hoursSinceBackup > staleThresholdHours) {
+      throw new Error(
+        `Backup is stale! Last backup was ${hoursSinceBackup.toFixed(1)} hours ago ` +
+        `(threshold: ${staleThresholdHours} hours). Last backup: ${statusJson.timestamp}`
+      );
+    }
+
+    // Check if backup status indicates failure
+    if (statusJson.exitCode !== 0) {
+      const errorMsg = statusJson.errors && statusJson.errors.length > 0
+        ? statusJson.errors.join(', ')
+        : 'Unknown error';
+      throw new Error(
+        `Last backup failed with exit code ${statusJson.exitCode}: ${errorMsg}`
+      );
+    }
+
+    // Build result object
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+    const result = {
+      backupName: 'EOL308',
+      lastBackupTime: statusJson.timestamp,
+      lastBackupExitCode: statusJson.exitCode,
+      lastBackupDuration: statusJson.duration,
+      totalSize: statusJson.totalSize || 'N/A',
+      totalFiles: statusJson.totalFiles || 0,
+      copiedFiles: statusJson.copiedFiles || 0,
+      skippedFiles: statusJson.skippedFiles || 0,
+      hoursSinceBackup: hoursSinceBackup.toFixed(1),
+      monitorDuration: `${duration}s`,
+      synologyIp: connectedIp,
+    };
+
+    console.log(
+      `\nmonitorEOL308Backup -> success at ${new Date().toLocaleString()} | ` +
+      `Last backup: ${statusJson.timestamp} (${hoursSinceBackup.toFixed(1)}h ago), ` +
+      `Files: ${result.totalFiles}, Size: ${result.totalSize}, Synology: ${connectedIp}`
+    );
+
+    // Report to status collector
+    statusCollector.addSuccess('monitorEOL308Backup', result);
+
+    return result;
+
+  } catch (error) {
+    console.error('Error in monitorEOL308Backup:', error);
+    throw error;
+  }
+}

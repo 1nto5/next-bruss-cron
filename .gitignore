@@ -179,3 +179,6 @@ dist
 scripts/.env.replication
 scripts/logs/*.log
 backups/
+
+# Synology Scripts
+synology-scripts/

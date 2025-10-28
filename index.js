@@ -11,8 +11,9 @@ import {
 } from './production-overtime-send-reminders.js';
 import { syncLdapUsers } from './sync-ldap-users.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
-import { backupLv1 } from './smb-backup-lv1.js';
-import { backupLv2 } from './smb-backup-lv2.js';
+import { monitorLv1Backup } from './monitor-lv1-backup.js';
+import { monitorLv2Backup } from './monitor-lv2-backup.js';
+import { monitorEOL308Backup } from './monitor-eol308-backup.js';
 import { executeJobWithStatusTracking } from './lib/error-notifier.js';
 import { setupHealthCheck } from './lib/health-check.js';
 import { errorCollector } from './lib/error-collector.js';
@@ -64,21 +65,21 @@ cron.schedule('0 16 * * 1-5', async () => {
   await executeJobWithStatusTracking('syncLdapUsers', syncLdapUsers);
 });
 
-// Backup tasks
-// ------------
-// Schedule LV1 MVC_Pictures backup every hour at minute 0
-cron.schedule('0 * * * *', async () => {
-  await executeJobWithStatusTracking('backupLv1', backupLv1);
+// Backup Monitoring tasks
+// -----------------------
+// Monitor LV1 MVC_Pictures backup daily at 07:00 (before daily summary at 08:00)
+cron.schedule('0 7 * * *', async () => {
+  await executeJobWithStatusTracking('monitorLv1Backup', monitorLv1Backup);
 });
 
-// Schedule LV2 Zasoby backup every hour at minute 30 (staggered 30 minutes after LV1)
-cron.schedule('30 * * * *', async () => {
-  await executeJobWithStatusTracking('backupLv2', backupLv2);
+// Monitor LV2 Zasoby backup daily at 07:00 (before daily summary at 08:00)
+cron.schedule('0 7 * * *', async () => {
+  await executeJobWithStatusTracking('monitorLv2Backup', monitorLv2Backup);
 });
 
-// Schedule cleanup of stale Synology locks every hour at minute 45
-cron.schedule('45 * * * *', async () => {
-  await cleanupStaleLocks();
+// Monitor EOL308 backup daily at 07:00 (before daily summary at 08:00)
+cron.schedule('0 7 * * *', async () => {
+  await executeJobWithStatusTracking('monitorEOL308Backup', monitorEOL308Backup);
 });
 
 // Maintenance tasks
