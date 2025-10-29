@@ -16,49 +16,40 @@ export async function monitorLv1Backup() {
     console.log('Starting LV1 MVC_Pictures backup monitoring...');
 
     // Get configuration from environment
-    const synologyIpPrimary = process.env.SYNOLOGY_BACKUP_IP_PRIMARY;
-    const synologyIpSecondary = process.env.SYNOLOGY_BACKUP_IP_SECONDARY;
-    const synologyIpTertiary = process.env.SYNOLOGY_BACKUP_IP_TERTIARY;
-    const synologyDomain = process.env.SYNOLOGY_BACKUP_DOMAIN;
+    const synologyIp = process.env.SYNOLOGY_IP;
     const synologyUser = process.env.SYNOLOGY_BACKUP_USER;
     const synologyPass = process.env.SYNOLOGY_BACKUP_PASS;
 
-    const monitorShare = process.env.SMB_LV1_MONITOR_SHARE;
     const monitorPath = process.env.SMB_LV1_MONITOR_PATH;
-    const staleThresholdHours = parseInt(process.env.SMB_LV1_STALE_THRESHOLD_HOURS || '24');
+    const staleThresholdHours = parseInt(process.env.SMB_STALE_THRESHOLD_HOURS || '24');
 
     // Validate configuration
-    if (!synologyIpPrimary || !synologyUser || !synologyPass) {
+    if (!synologyIp || !synologyUser || !synologyPass) {
       throw new Error('Missing Synology configuration in environment variables');
     }
-    if (!monitorShare || !monitorPath) {
+    if (!monitorPath) {
       throw new Error('Missing LV1 monitoring configuration in environment variables');
     }
 
-    // Build list of Synology IPs
-    const synologyIps = [synologyIpPrimary];
-    if (synologyIpSecondary) {
-      synologyIps.push(synologyIpSecondary);
-    }
-    if (synologyIpTertiary) {
-      synologyIps.push(synologyIpTertiary);
-    }
+    // Parse share and path from monitorPath (format: "share/path")
+    const [monitorShare, ...pathParts] = monitorPath.split('/');
+    const monitorSubPath = pathParts.join('/');
 
-    console.log(`Connecting to Synology (IPs: ${synologyIps.join(', ')})...`);
+    console.log(`Connecting to Synology (${synologyIp})...`);
 
-    // Connect to Synology using failover mechanism
+    // Connect to Synology
     const { client: smbClient, connectedIp } = await connectToSynologyWithFailover(
-      synologyIps,
+      [synologyIp],
       monitorShare,
       synologyUser,
       synologyPass,
-      synologyDomain
+      undefined
     );
 
     console.log(`Connected to Synology at ${connectedIp}`);
 
     // Read the status JSON file
-    const statusFilePath = `${monitorPath}\\last_backup_status.json`;
+    const statusFilePath = `${monitorSubPath}\\last_backup_status.json`;
     console.log(`Reading backup status from: ${statusFilePath}`);
 
     const statusJson = await new Promise((resolve, reject) => {
