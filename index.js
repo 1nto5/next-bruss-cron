@@ -4,61 +4,82 @@ import { archiveScans } from './archive-scans.js';
 import { sendDeviationApprovalReminders } from './deviations-send-reminders.js';
 import { deviationsStatusUpdate } from './deviations-status-update.js';
 import { sendHrTrainingEvaluationNotifications } from './hr-training-evaluation-notifications.js';
+import { errorCollector } from './lib/error-collector.js';
+import { executeJobWithStatusTracking } from './lib/error-notifier.js';
+import { statusCollector } from './lib/status-collector.js';
 import { logOvenTemperature } from './log-oven-temperature.js';
+import { monitorEOL308Backup } from './monitor-eol308-backup.js';
+import { monitorLv1Backup } from './monitor-lv1-backup.js';
+import { monitorLv2Backup } from './monitor-lv2-backup.js';
 import {
   sendCompletedTaskAttendanceReminders,
   sendOvertimeApprovalReminders,
 } from './production-overtime-send-reminders.js';
 import { syncLdapUsers } from './sync-ldap-users.js';
 import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
-import { monitorLv1Backup } from './monitor-lv1-backup.js';
-import { monitorLv2Backup } from './monitor-lv2-backup.js';
-import { monitorEOL308Backup } from './monitor-eol308-backup.js';
-import { executeJobWithStatusTracking } from './lib/error-notifier.js';
-import { setupHealthCheck } from './lib/health-check.js';
-import { errorCollector } from './lib/error-collector.js';
-import { statusCollector } from './lib/status-collector.js';
-import { cleanupStaleLocks } from './lib/synology-lock.js';
 
 dotenv.config();
-
-// Setup health check server
-setupHealthCheck();
 
 // Deviations tasks
 // -----------------------
 // Schedule sending of pending deviation approval notifications every workday at 03:00
-cron.schedule('0 3 * * 1-5', async () => {
-  await executeJobWithStatusTracking('sendDeviationApprovalReminders', sendDeviationApprovalReminders);
-}, {});
+cron.schedule(
+  '0 3 * * 1-5',
+  async () => {
+    await executeJobWithStatusTracking(
+      'sendDeviationApprovalReminders',
+      sendDeviationApprovalReminders
+    );
+  },
+  {}
+);
 // Schedule deviations status update every 2 hours
-cron.schedule('0 */2 * * *', async () => {
-  await executeJobWithStatusTracking('deviationsStatusUpdate', deviationsStatusUpdate);
-}, {});
+cron.schedule(
+  '0 */2 * * *',
+  async () => {
+    await executeJobWithStatusTracking(
+      'deviationsStatusUpdate',
+      deviationsStatusUpdate
+    );
+  },
+  {}
+);
 
 // Production overtime tasks
 // -------------------------------
 // Schedule sending of pending production overtime email notifications every workday at 3:00
 cron.schedule('0 3 * * 1-5', async () => {
-  await executeJobWithStatusTracking('sendOvertimeApprovalReminders', sendOvertimeApprovalReminders);
+  await executeJobWithStatusTracking(
+    'sendOvertimeApprovalReminders',
+    sendOvertimeApprovalReminders
+  );
 });
 // Schedule sending of completed task attendance reminders every workday at 9:00
 cron.schedule('0 9 * * 1-5', async () => {
-  await executeJobWithStatusTracking('sendCompletedTaskAttendanceReminders', sendCompletedTaskAttendanceReminders);
+  await executeJobWithStatusTracking(
+    'sendCompletedTaskAttendanceReminders',
+    sendCompletedTaskAttendanceReminders
+  );
 });
 
 // HR Training Evaluation Notifications
 // ------------------------------------
 // Schedule HR training evaluation deadline notifications every workday at 3:00
 cron.schedule('0 3 * * 1-5', async () => {
-  await executeJobWithStatusTracking('sendHrTrainingEvaluationNotifications', sendHrTrainingEvaluationNotifications);
+  await executeJobWithStatusTracking(
+    'sendHrTrainingEvaluationNotifications',
+    sendHrTrainingEvaluationNotifications
+  );
 });
 
 // Data synchronization tasks
 // --------------------------
 // Schedule synchronization of r2platnik employees at 16:00 every workday
 cron.schedule('0 16 * * 1-5', async () => {
-  await executeJobWithStatusTracking('syncR2platnikEmployees', syncR2platnikEmployees);
+  await executeJobWithStatusTracking(
+    'syncR2platnikEmployees',
+    syncR2platnikEmployees
+  );
 });
 // Schedule synchronization of LDAP users every workday at 16:00
 cron.schedule('0 16 * * 1-5', async () => {
@@ -79,7 +100,10 @@ cron.schedule('0 7 * * *', async () => {
 
 // Monitor EOL308 backup daily at 07:00 (before daily summary at 08:00)
 cron.schedule('0 7 * * *', async () => {
-  await executeJobWithStatusTracking('monitorEOL308Backup', monitorEOL308Backup);
+  await executeJobWithStatusTracking(
+    'monitorEOL308Backup',
+    monitorEOL308Backup
+  );
 });
 
 // Maintenance tasks
@@ -104,6 +128,7 @@ cron.schedule('0 * * * *', async () => {
 // Status reporting tasks
 // ----------------------
 // Schedule daily status summary at 8:00 AM every day
+// Includes all executions since the last summary was sent
 cron.schedule('0 8 * * *', async () => {
-  await statusCollector.sendStatusSummary(24, true); // 24 hours, force even if empty
+  await statusCollector.sendStatusSummary();
 });
