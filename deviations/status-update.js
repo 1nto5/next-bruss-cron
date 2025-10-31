@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { dbc } from './lib/mongo.js';
+import { dbc } from '../lib/mongo.js';
 
 dotenv.config();
 

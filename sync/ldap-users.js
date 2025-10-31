@@ -1,4 +1,4 @@
-import { dbc } from './lib/mongo.js';
+import { dbc } from '../lib/mongo.js';
 const LdapClientModule = await import('ldapjs-client');
 const LdapClient = LdapClientModule.default || LdapClientModule;
 
@@ -111,3 +111,4 @@ export async function syncLdapUsers() {
     );
   }
 }
+

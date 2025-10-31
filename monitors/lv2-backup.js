@@ -1,26 +1,26 @@
 import dotenv from 'dotenv';
-import { statusCollector } from './lib/status-collector.js';
-import { connectToSynologyWithFailover } from './lib/smb-helpers.js';
+import { statusCollector } from '../lib/status-collector.js';
+import { connectToSynologyWithFailover } from '../lib/smb-helpers.js';
 
 dotenv.config();
 
 /**
- * Monitor LV1 MySQL backup executed by Synology mysqldump script
+ * Monitor LV2 Zasoby backup executed by Synology rsync script
  * This function checks if the backup is running correctly by reading
  * the status JSON file created by the bash backup script
  */
-export async function monitorSqlLv1Backup() {
+export async function monitorLv2Backup() {
   const startTime = Date.now();
 
   try {
-    console.log('Starting LV1 MySQL backup monitoring...');
+    console.log('Starting LV2 Zasoby backup monitoring...');
 
     // Get configuration from environment
     const synologyIp = process.env.SYNOLOGY_IP;
     const synologyUser = process.env.SYNOLOGY_BACKUP_USER;
     const synologyPass = process.env.SYNOLOGY_BACKUP_PASS;
 
-    const monitorPath = process.env.SMB_SQL_LV1_MONITOR_PATH;
+    const monitorPath = process.env.SMB_LV2_MONITOR_PATH;
     const staleThresholdHours = parseInt(process.env.SMB_STALE_THRESHOLD_HOURS || '24');
 
     // Validate configuration
@@ -28,7 +28,7 @@ export async function monitorSqlLv1Backup() {
       throw new Error('Missing Synology configuration in environment variables');
     }
     if (!monitorPath) {
-      throw new Error('Missing LV1 SQL monitoring configuration in environment variables');
+      throw new Error('Missing LV2 monitoring configuration in environment variables');
     }
 
     // Parse share and path from monitorPath (format: "share/path")
@@ -49,8 +49,8 @@ export async function monitorSqlLv1Backup() {
     console.log(`Connected to Synology at ${connectedIp}`);
 
     // Read the status JSON file
-    const statusFilePath = `${monitorSubPath}\\last_sql_backup_status.json`;
-    console.log(`Reading SQL backup status from: ${statusFilePath}`);
+    const statusFilePath = `${monitorSubPath}\\last_backup_status.json`;
+    console.log(`Reading backup status from: ${statusFilePath}`);
 
     const statusJson = await new Promise((resolve, reject) => {
       smbClient.readFile(statusFilePath, (err, content) => {
@@ -67,7 +67,7 @@ export async function monitorSqlLv1Backup() {
       });
     });
 
-    console.log(`SQL backup status read successfully. Last backup: ${statusJson.timestamp}`);
+    console.log(`Backup status read successfully. Last backup: ${statusJson.timestamp}`);
 
     // Check if backup is stale
     const lastBackupTime = new Date(statusJson.timestampIso || statusJson.timestamp);
@@ -76,7 +76,7 @@ export async function monitorSqlLv1Backup() {
 
     if (hoursSinceBackup > staleThresholdHours) {
       throw new Error(
-        `SQL backup is stale! Last backup was ${hoursSinceBackup.toFixed(1)} hours ago ` +
+        `Backup is stale! Last backup was ${hoursSinceBackup.toFixed(1)} hours ago ` +
         `(threshold: ${staleThresholdHours} hours). Last backup: ${statusJson.timestamp}`
       );
     }
@@ -87,7 +87,7 @@ export async function monitorSqlLv1Backup() {
         ? statusJson.errors.join('; ')
         : 'Unknown error';
       throw new Error(
-        `Last SQL backup failed with exit code: ${statusJson.exitCode}. Error: ${errorMsg}`
+        `Last backup failed with exit code: ${statusJson.exitCode}. Error: ${errorMsg}`
       );
     }
 
@@ -95,34 +95,37 @@ export async function monitorSqlLv1Backup() {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     const result = {
-      backupName: 'LV1 SQL',
+      backupName: 'LV2',
       lastBackupTime: statusJson.timestamp,
       lastBackupExitCode: statusJson.exitCode,
       lastBackupDuration: statusJson.duration,
       hoursSinceBackup: hoursSinceBackup.toFixed(1),
       monitorDuration: `${duration}s`,
       synologyIp: connectedIp,
-      backupFile: statusJson.backupFile || 'unknown',
-      backupSize: statusJson.backupSize || '0',
-      backupBytes: statusJson.backupBytes || 0,
-      remainingBackups: statusJson.remainingBackups || 0,
-      database: statusJson.database || 'bmw',
-      host: statusJson.host || 'unknown',
+      copiedFiles: statusJson.copiedFiles || 0,
+      skippedFiles: statusJson.skippedFiles || 0,
+      totalFiles: statusJson.totalFiles || 0,
+      formattedSize: statusJson.totalSize || '0 B',
+      totalBytes: 0, // Would need parsing from totalSize string
+      successfulDirs: statusJson.successfulDirs || 0,
+      failedDirs: statusJson.failedDirs || 0,
     };
 
     console.log(
-      `\nmonitorSqlLv1Backup -> success at ${new Date().toLocaleString()} | ` +
+      `\nmonitorLv2Backup -> success at ${new Date().toLocaleString()} | ` +
       `Last backup: ${statusJson.timestamp} (${hoursSinceBackup.toFixed(1)}h ago), ` +
-      `File: ${result.backupFile}, Size: ${result.backupSize}, Synology: ${connectedIp}`
+      `Files: ${result.totalFiles}, Size: ${result.formattedSize}, ` +
+      `Dirs: ${result.successfulDirs}/${result.successfulDirs + result.failedDirs}, Synology: ${connectedIp}`
     );
 
     // Report to status collector
-    statusCollector.addSuccess('monitorSqlLv1Backup', result);
+    statusCollector.addSuccess('monitorLv2Backup', result);
 
     return result;
 
   } catch (error) {
-    console.error('Error in monitorSqlLv1Backup:', error);
+    console.error('Error in monitorLv2Backup:', error);
     throw error;
   }
 }
+

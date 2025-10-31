@@ -445,3 +445,4 @@ export async function sendHrTrainingEvaluationNotifications() {
     throw error; // Re-throw to allow executeWithErrorNotification to handle it
   }
 }
+

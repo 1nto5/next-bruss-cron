@@ -1,6 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { dbc } from './lib/mongo.js';
+import { dbc } from '../lib/mongo.js';
 
 dotenv.config();
 
@@ -261,4 +261,7 @@ async function sendDeviationApprovalReminders() {
   );
 }
 
-export { sendDeviationApprovalReminders, sendDeviationApprovalReminders as sendPendingDeviationApprovalNotifications };
+export {
+  sendDeviationApprovalReminders,
+  sendDeviationApprovalReminders as sendPendingDeviationApprovalNotifications,
+};

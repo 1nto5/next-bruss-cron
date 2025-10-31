@@ -1,24 +1,24 @@
 import dotenv from 'dotenv';
 import cron from 'node-cron';
 import { archiveScans } from './archive-scans.js';
-import { sendDeviationApprovalReminders } from './deviations-send-reminders.js';
-import { deviationsStatusUpdate } from './deviations-status-update.js';
-import { sendHrTrainingEvaluationNotifications } from './hr-training-evaluation-notifications.js';
+import { sendDeviationApprovalReminders } from './deviations/send-reminders.js';
+import { deviationsStatusUpdate } from './deviations/status-update.js';
+import { sendHrTrainingEvaluationNotifications } from './hr-training/evaluation-notifications.js';
 import { errorCollector } from './lib/error-collector.js';
 import { executeJobWithStatusTracking } from './lib/error-notifier.js';
 import { statusCollector } from './lib/status-collector.js';
 import { logOvenTemperature } from './log-oven-temperature.js';
-import { monitorEOL308Backup } from './monitor-eol308-backup.js';
-import { monitorLv1Backup } from './monitor-lv1-backup.js';
-import { monitorLv2Backup } from './monitor-lv2-backup.js';
-import { monitorSqlLv1Backup } from './monitor-sql-lv1-backup.js';
-import { monitorSqlLv2Backup } from './monitor-sql-lv2-backup.js';
+import { monitorEOL308Backup } from './monitors/eol308-backup.js';
+import { monitorLv1Backup } from './monitors/lv1-backup.js';
+import { monitorLv2Backup } from './monitors/lv2-backup.js';
+import { monitorSqlLv1Backup } from './monitors/sql-lv1-backup.js';
+import { monitorSqlLv2Backup } from './monitors/sql-lv2-backup.js';
 import {
   sendCompletedTaskAttendanceReminders,
   sendOvertimeApprovalReminders,
-} from './production-overtime-send-reminders.js';
-import { syncLdapUsers } from './sync-ldap-users.js';
-import { syncR2platnikEmployees } from './sync-r2platnik-employees.js';
+} from './production-overtime/send-reminders.js';
+import { syncLdapUsers } from './sync/ldap-users.js';
+import { syncR2platnikEmployees } from './sync/r2platnik-employees.js';
 
 dotenv.config();
 

@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 import sql from 'mssql';
-import { dbc } from './lib/mongo.js';
+import { dbc } from '../lib/mongo.js';
 
 dotenv.config();
 
@@ -98,3 +98,4 @@ async function syncR2platnikEmployees() {
 }
 
 export { syncR2platnikEmployees };
+

@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
-import { statusCollector } from './lib/status-collector.js';
-import { connectToSynologyWithFailover } from './lib/smb-helpers.js';
+import { statusCollector } from '../lib/status-collector.js';
+import { connectToSynologyWithFailover } from '../lib/smb-helpers.js';
 
 dotenv.config();
 
@@ -124,3 +124,4 @@ export async function monitorEOL308Backup() {
     throw error;
   }
 }
+
