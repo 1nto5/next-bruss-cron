@@ -95,7 +95,7 @@ export async function monitorLv2Backup() {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     const result = {
-      backupName: 'LV2_Zasoby',
+      backupName: 'LV2',
       lastBackupTime: statusJson.timestamp,
       lastBackupExitCode: statusJson.exitCode,
       lastBackupDuration: statusJson.duration,

@@ -95,7 +95,7 @@ export async function monitorSqlLv1Backup() {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     const result = {
-      backupName: 'LV1_MySQL_bmw',
+      backupName: 'LV1 SQL',
       lastBackupTime: statusJson.timestamp,
       lastBackupExitCode: statusJson.exitCode,
       lastBackupDuration: statusJson.duration,

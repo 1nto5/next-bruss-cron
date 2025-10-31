@@ -11,6 +11,8 @@ import { logOvenTemperature } from './log-oven-temperature.js';
 import { monitorEOL308Backup } from './monitor-eol308-backup.js';
 import { monitorLv1Backup } from './monitor-lv1-backup.js';
 import { monitorLv2Backup } from './monitor-lv2-backup.js';
+import { monitorSqlLv1Backup } from './monitor-sql-lv1-backup.js';
+import { monitorSqlLv2Backup } from './monitor-sql-lv2-backup.js';
 import {
   sendCompletedTaskAttendanceReminders,
   sendOvertimeApprovalReminders,
@@ -96,6 +98,16 @@ cron.schedule('0 7 * * *', async () => {
 // Monitor LV2 Zasoby backup daily at 07:00 (before daily summary at 08:00)
 cron.schedule('0 7 * * *', async () => {
   await executeJobWithStatusTracking('monitorLv2Backup', monitorLv2Backup);
+});
+
+// Monitor LV1 SQL backup daily at 07:00 (before daily summary at 08:00)
+cron.schedule('0 7 * * *', async () => {
+  await executeJobWithStatusTracking('monitorSqlLv1Backup', monitorSqlLv1Backup);
+});
+
+// Monitor LV2 SQL backup daily at 07:00 (before daily summary at 08:00)
+cron.schedule('0 7 * * *', async () => {
+  await executeJobWithStatusTracking('monitorSqlLv2Backup', monitorSqlLv2Backup);
 });
 
 // Monitor EOL308 backup daily at 07:00 (before daily summary at 08:00)

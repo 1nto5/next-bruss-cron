@@ -95,7 +95,7 @@ export async function monitorLv1Backup() {
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 
     const result = {
-      backupName: 'LV1_MVC_Pictures',
+      backupName: 'LV1',
       lastBackupTime: statusJson.timestamp,
       lastBackupExitCode: statusJson.exitCode,
       lastBackupDuration: statusJson.duration,
