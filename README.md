@@ -1,6 +1,6 @@
-# next-bruss-cron
+# BRUSS-CRON
 
-Cron job scheduler for Next-Bruss operations.
+Cron job scheduler for BRUSS operations.
 
 ## Installation
 
