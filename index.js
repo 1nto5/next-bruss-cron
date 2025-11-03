@@ -7,6 +7,7 @@ import { sendHrTrainingEvaluationNotifications } from './hr-training/evaluation-
 import { errorCollector } from './lib/error-collector.js';
 import { executeJobWithStatusTracking } from './lib/error-notifier.js';
 import { statusCollector } from './lib/status-collector.js';
+import { temperatureOutlierCollector } from './lib/temperature-outlier-collector.js';
 import { logOvenTemperature } from './log-oven-temperature.js';
 import { monitorEOL308Backup } from './monitors/eol308-backup.js';
 import { monitorLv1Backup } from './monitors/lv1-backup.js';
@@ -135,6 +136,11 @@ cron.schedule('* * * * *', async () => {
 // Schedule batch error notification every hour at minute 0
 cron.schedule('0 * * * *', async () => {
   await errorCollector.sendBatchNotification();
+});
+
+// Schedule batch temperature outlier notification every hour at minute 0
+cron.schedule('0 * * * *', async () => {
+  await temperatureOutlierCollector.sendBatchNotification();
 });
 
 // Status reporting tasks
