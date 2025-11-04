@@ -10,6 +10,7 @@ import {
   SENSOR_LABELS
 } from './lib/temperature-constants.js';
 import { temperatureOutlierCollector } from './lib/temperature-outlier-collector.js';
+import { temperatureMissingSensorCollector } from './lib/temperature-missing-sensor-collector.js';
 
 dotenv.config();
 
@@ -259,6 +260,7 @@ async function logOvenTemperature() {
           const shouldNotify = !lastReadTime || lastReadTime < silenceThreshold;
           
           if (shouldNotify) {
+            const currentTimestamp = new Date();
             const errorContext = {
               oven,
               ip,
@@ -278,6 +280,23 @@ async function logOvenTemperature() {
               err.message,
               '\nContext:', JSON.stringify(errorContext, null, 2)
             );
+            
+            // Collect missing sensor for hourly batch notification
+            temperatureMissingSensorCollector.addMissingSensor(
+              oven,
+              ip,
+              processes.map(p => ({
+                id: p._id,
+                status: p.status,
+                hydraBatch: p.hydraBatch,
+                article: p.article,
+                startTime: p.startTime
+              })),
+              lastReadTime,
+              err,
+              currentTimestamp
+            );
+            
             // Add context to error for better notification
             err.context = errorContext;
             throw err;
