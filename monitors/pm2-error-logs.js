@@ -1,6 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
+import path from 'path';
 import { parseEmailAddresses } from '../lib/email-helper.js';
 
 dotenv.config();
@@ -8,21 +9,55 @@ dotenv.config();
 // Track last known file sizes and last notified sizes per file
 const fileState = new Map();
 
-// Log file configurations
-const LOG_FILES = [
-  {
-    path: 'C:\\ProgramData\\pm2\\home\\logs\\bruss-floor-error.log',
-    appName: 'bruss-floor',
-  },
-  {
-    path: 'C:\\ProgramData\\pm2\\home\\logs\\bruss-intra-error.log',
-    appName: 'bruss-intra',
-  },
-  {
-    path: 'C:\\ProgramData\\pm2\\home\\logs\\bruss-cron-error-6.log',
-    appName: 'bruss-cron',
-  },
-];
+// Log directory and app names to monitor
+const LOG_DIR = 'C:\\ProgramData\\pm2\\home\\logs';
+const APP_NAMES = ['bruss-floor', 'bruss-intra', 'bruss-cron'];
+
+/**
+ * Find all error log files for an application
+ * Matches files like: bruss-cron-error.log, bruss-cron-error-0.log, bruss-cron-error-6.log, etc.
+ * @param {string} appName - Application name
+ * @returns {Promise<string[]>} Array of file paths
+ */
+async function findErrorLogFiles(appName) {
+  try {
+    const files = await fs.readdir(LOG_DIR);
+    // Match files like: {appName}-error.log or {appName}-error-{number}.log
+    const pattern = new RegExp(`^${appName}-error(-\\d+)?\\.log$`);
+    const matchingFiles = files
+      .filter((file) => pattern.test(file))
+      .map((file) => path.join(LOG_DIR, file))
+      .sort(); // Sort to have consistent order (base name first, then numbered)
+
+    return matchingFiles;
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      console.warn(`Log directory not found: ${LOG_DIR}`);
+      return [];
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get all log files to monitor
+ * @returns {Promise<Array<{path: string, appName: string}>>}
+ */
+async function getLogFiles() {
+  const logFiles = [];
+
+  for (const appName of APP_NAMES) {
+    const files = await findErrorLogFiles(appName);
+    for (const filePath of files) {
+      logFiles.push({
+        path: filePath,
+        appName,
+      });
+    }
+  }
+
+  return logFiles;
+}
 
 /**
  * Read last N lines from a file
@@ -123,8 +158,9 @@ ${errorContent}
  */
 export async function monitorPm2ErrorLogs() {
   const results = [];
+  const logFiles = await getLogFiles();
 
-  for (const logFile of LOG_FILES) {
+  for (const logFile of logFiles) {
     const { path: filePath, appName } = logFile;
 
     try {
@@ -207,7 +243,7 @@ export async function monitorPm2ErrorLogs() {
   }
 
   return {
-    checked: LOG_FILES.length,
+    checked: logFiles.length,
     results,
     timestamp: new Date().toLocaleString('pl-PL', {
       timeZone: 'Europe/Warsaw',
