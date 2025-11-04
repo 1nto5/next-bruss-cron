@@ -209,6 +209,8 @@ export async function monitorPm2ErrorLogs() {
   return {
     checked: LOG_FILES.length,
     results,
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toLocaleString('pl-PL', {
+      timeZone: 'Europe/Warsaw',
+    }),
   };
 }
