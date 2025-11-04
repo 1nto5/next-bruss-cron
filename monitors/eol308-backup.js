@@ -58,11 +58,22 @@ export async function monitorEOL308Backup() {
           reject(new Error(`Failed to read status file: ${err.message}`));
         } else {
           try {
-            const jsonData = JSON.parse(content.toString('utf8'));
+            const contentStr = content.toString('utf8').trim();
+            if (!contentStr) {
+              reject(new Error('Status file is empty'));
+              return;
+            }
+            const jsonData = JSON.parse(contentStr);
             resolve(jsonData);
           } catch (parseErr) {
+            const contentPreview = content
+              .toString('utf8')
+              .trim()
+              .substring(0, 200);
             reject(
-              new Error(`Failed to parse status JSON: ${parseErr.message}`)
+              new Error(
+                `Failed to parse status JSON: ${parseErr.message}. Content preview: ${contentPreview}`
+              )
             );
           }
         }
