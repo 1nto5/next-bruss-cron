@@ -13,6 +13,7 @@ import { logOvenTemperature } from './log-oven-temperature.js';
 import { monitorEOL308Backup } from './monitors/eol308-backup.js';
 import { monitorLv1Backup } from './monitors/lv1-backup.js';
 import { monitorLv2Backup } from './monitors/lv2-backup.js';
+import { monitorPm2ErrorLogs } from './monitors/pm2-error-logs.js';
 import { monitorSqlLv1Backup } from './monitors/sql-lv1-backup.js';
 import { monitorSqlLv2Backup } from './monitors/sql-lv2-backup.js';
 import {
@@ -88,6 +89,13 @@ cron.schedule('0 16 * * 1-5', async () => {
 // Schedule synchronization of LDAP users every workday at 16:00
 cron.schedule('0 16 * * 1-5', async () => {
   await executeJobWithStatusTracking('syncLdapUsers', syncLdapUsers);
+});
+
+// PM2 Error Log Monitoring
+// ------------------------
+// Monitor PM2 error logs every 15 minutes
+cron.schedule('*/15 * * * *', async () => {
+  await executeJobWithStatusTracking('monitorPm2ErrorLogs', monitorPm2ErrorLogs);
 });
 
 // Backup Monitoring tasks
