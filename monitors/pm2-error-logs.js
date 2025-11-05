@@ -82,16 +82,9 @@ async function readLastLines(filePath, numLines = 100) {
 /**
  * Send email notification about PM2 error log
  * @param {string} appName - Application name
- * @param {string} filePath - Path to error log file
  * @param {string[]} errorLines - Array of error lines
- * @param {number} sizeChange - Bytes that file grew
  */
-async function sendErrorNotification(
-  appName,
-  filePath,
-  errorLines,
-  sizeChange
-) {
+async function sendErrorNotification(appName, errorLines) {
   const adminEmail = process.env.ADMIN_EMAIL;
   const apiUrl = process.env.API_URL;
 
@@ -117,16 +110,14 @@ async function sendErrorNotification(
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 800px;">
       <h2 style="color: #d32f2f;">PM2 Error Log Alert</h2>
-      
+
       <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
-        <p><strong>Aplikacja:</strong> ${appName}</p>
-        <p><strong>Plik:</strong> ${filePath}</p>
-        <p><strong>Czas:</strong> ${timestamp}</p>
-        <p><strong>Zmiana rozmiaru:</strong> +${sizeChange} bytes</p>
+        <p><strong>Application:</strong> ${appName}</p>
+        <p><strong>Time:</strong> ${timestamp}</p>
       </div>
 
       <div style="background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 10px 0;">
-        <p><strong>Ostatnie linie błędów:</strong></p>
+        <p><strong>Recent Error Lines:</strong></p>
         <pre style="background-color: #fff; padding: 10px; border: 1px solid #ccc; border-radius: 3px; overflow-x: auto; font-size: 12px; max-height: 500px; overflow-y: auto;">
 ${errorContent}
         </pre>
@@ -206,12 +197,7 @@ export async function monitorPm2ErrorLogs() {
           const errorLines = await readLastLines(filePath, 100);
 
           // Send notification
-          await sendErrorNotification(
-            appName,
-            filePath,
-            errorLines,
-            sizeChange
-          );
+          await sendErrorNotification(appName, errorLines);
 
           // Update last notified size
           state.lastNotifiedSize = currentSize;
