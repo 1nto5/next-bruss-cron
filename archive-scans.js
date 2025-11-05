@@ -12,8 +12,8 @@ async function archiveScans() {
   const thresholdDate = new Date(Date.now() - THREE_MONTHS_MS);
 
   try {
-    const scansCollection = await dbc('scans');
-    const scansArchiveCollection = await dbc('scans_archive');
+    const scansCollection = await dbc('dmcheck_scans');
+    const scansArchiveCollection = await dbc('dmcheck_scans_archive');
 
     await scansCollection.updateMany(
       { time: { $lt: thresholdDate } },

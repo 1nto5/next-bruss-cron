@@ -47,7 +47,7 @@ EXAMPLES:
     $0                                    # Full mirror replication
     $0 --yes                             # Skip confirmation
     $0 --collections users,deviations    # Only specific collections
-    $0 --exclude scans_archive,logs      # Exclude large collections
+    $0 --exclude dmcheck_scans_archive,logs      # Exclude large collections
     $0 --skip-archive                    # Skip all collections with 'archive' in name
 
 EOF
