@@ -1,5 +1,6 @@
 {
   "name": "bruss-cron",
+  "description": "Scheduled task automation and monitoring service for BRUSS manufacturing operations",
   "type": "module",
   "devDependencies": {},
   "peerDependencies": {},

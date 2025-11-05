@@ -1,6 +1,6 @@
 # BRUSS-CRON
 
-Cron job scheduler for BRUSS operations.
+Scheduled task automation and monitoring service for BRUSS manufacturing operations. Provides automated reminders, data synchronization, monitoring, and backup services for the bruss-intra and bruss-floor applications.
 
 ## Installation
 
@@ -38,3 +38,8 @@ Copy `.env.example` to `.env` and configure environment variables.
 - Oven temperature monitoring
 - Scan archiving
 - **SMB backups:** LV1 MVC_Pictures and LV2 Zasoby to Synology NAS
+
+## 🔗 Related Projects
+
+- **bruss-intra** - Management and analytics web application
+- **bruss-floor** - Shop floor operations web application
