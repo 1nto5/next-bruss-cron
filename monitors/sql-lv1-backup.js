@@ -63,7 +63,15 @@ export async function monitorSqlLv1Backup() {
               reject(new Error('Status file is empty'));
               return;
             }
-            const jsonData = JSON.parse(contentStr);
+
+            // Clean whitespace from numeric values before parsing
+            // Handles wc -l output with leading spaces and empty stat values
+            const cleanedContent = contentStr.replace(
+              /"(backupBytes|remainingBackups)":\s*(\d+)/g,
+              '"$1": $2'
+            );
+
+            const jsonData = JSON.parse(cleanedContent);
             resolve(jsonData);
           } catch (parseErr) {
             const contentPreview = content
